@@ -10,13 +10,17 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "lucide-react": "^1.47.0",
     "react": "latest",
     "react-dom": "latest",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "latest",
-    "tailwindcss": "latest"
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "latest"

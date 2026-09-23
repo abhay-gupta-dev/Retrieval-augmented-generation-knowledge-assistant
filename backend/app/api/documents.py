@@ -1,9 +1,9 @@
-"""Authenticated document upload and indexing status API."""
+"""Authenticated document upload, search, and indexing status API."""
 
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,34 +18,87 @@ router = APIRouter(prefix="/knowledge-bases/{knowledge_base_id}/documents", tags
 
 
 @router.get("", response_model=list[DocumentResponse])
-def list_documents(knowledge_base_id: UUID, user: User = Depends(get_current_user), database: Session = Depends(get_db)) -> list[Document]:
+def list_documents(
+    knowledge_base_id: UUID,
+    search: str | None = Query(default=None, description="Filter by filename"),
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> list[Document]:
+    """List documents in a knowledge base with optional filename search."""
     owned_knowledge_base(database, user, knowledge_base_id)
-    return list(database.scalars(select(Document).where(Document.knowledge_base_id == knowledge_base_id).order_by(Document.created_at.desc())))
+    query = select(Document).where(Document.knowledge_base_id == knowledge_base_id)
+    if search and search.strip():
+        query = query.where(Document.original_filename.ilike(f"%{search.strip()}%"))
+    query = query.order_by(Document.created_at.desc())
+    return list(database.scalars(query))
 
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
-async def upload_document(knowledge_base_id: UUID, background_tasks: BackgroundTasks, file: UploadFile = File(...), user: User = Depends(get_current_user), database: Session = Depends(get_db)) -> Document:
+async def upload_document(
+    knowledge_base_id: UUID,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> Document:
+    """Upload a document, validate it, check for duplicates, and start background indexing."""
     owned_knowledge_base(database, user, knowledge_base_id)
     filename = Path(file.filename or "upload").name
     content = await file.read()
+
     try:
         storage_key, content_hash = persist_upload(filename, content)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
-    document = Document(knowledge_base_id=knowledge_base_id, original_filename=filename, storage_key=storage_key, content_type=file.content_type, size_bytes=len(content), content_sha256=content_hash, status="queued")
+
+    # Prevent duplicate identical uploads in the same knowledge base
+    existing = database.scalar(
+        select(Document).where(
+            Document.knowledge_base_id == knowledge_base_id,
+            Document.content_sha256 == content_hash,
+            Document.status != "failed",
+        )
+    )
+    if existing:
+        # Clean up uploaded storage file
+        storage_path(storage_key).unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"An identical document '{existing.original_filename}' is already indexed in this knowledge base.",
+        )
+
+    document = Document(
+        knowledge_base_id=knowledge_base_id,
+        original_filename=filename,
+        storage_key=storage_key,
+        content_type=file.content_type,
+        size_bytes=len(content),
+        content_sha256=content_hash,
+        status="processing",
+    )
     database.add(document)
     database.commit()
     database.refresh(document)
+
     background_tasks.add_task(index_document, document.id)
     return document
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_document(knowledge_base_id: UUID, document_id: UUID, user: User = Depends(get_current_user), database: Session = Depends(get_db)) -> None:
+def delete_document(
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> None:
+    """Delete a document and its storage file and vector chunks."""
     owned_knowledge_base(database, user, knowledge_base_id)
-    document = database.scalar(select(Document).where(Document.id == document_id, Document.knowledge_base_id == knowledge_base_id))
+    document = database.scalar(
+        select(Document).where(Document.id == document_id, Document.knowledge_base_id == knowledge_base_id)
+    )
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
     path = storage_path(document.storage_key)
     database.delete(document)
     database.commit()

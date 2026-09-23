@@ -7,6 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.dashboard import router as dashboard_router
 from app.api.documents import router as documents_router
 from app.api.knowledge_base import router as knowledge_base_router
 from app.api.profile import router as profile_router
@@ -16,8 +17,8 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
-    description="API foundation for the AI Knowledge and Multi-Agent Platform.",
+    version="1.0.0",
+    description="Production-grade AI Knowledge Platform & RAG Assistant API.",
 )
 
 if settings.is_production and not settings.session_secret_key:
@@ -30,24 +31,32 @@ app.add_middleware(
     same_site="lax",
 )
 
+# Comprehensive CORS origins ensuring both localhost and 127.0.0.1 work in development
+cors_origins = set(settings.cors_origins)
+cors_origins.add("http://localhost:5173")
+cors_origins.add("http://127.0.0.1:5173")
+if settings.frontend_url:
+    cors_origins.add(settings.frontend_url.rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=list(cors_origins),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
 
 
 @app.get("/health", tags=["system"])
 def health_check() -> dict[str, str]:
-    """Liveness endpoint intentionally independent of PostgreSQL."""
+    """Liveness endpoint."""
     return {"status": "healthy"}
 
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(knowledge_base_router, prefix="/api/v1")
-app.include_router(agents_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
+app.include_router(agents_router, prefix="/api/v1")

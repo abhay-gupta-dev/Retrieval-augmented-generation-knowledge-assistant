@@ -1,4 +1,4 @@
-"""Google OIDC, cookie-based JWT session, and current-user endpoints."""
+"""Google OIDC, cookie-based JWT session, dev-login, and current-user endpoints."""
 
 from functools import lru_cache
 from urllib.parse import urlencode
@@ -7,6 +7,7 @@ from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -40,13 +41,58 @@ def login_error_redirect(settings: Settings, message: str) -> RedirectResponse:
 
 
 def set_session_cookies(response: Response, user: User, refresh_token: str, settings: Settings) -> None:
-    response.set_cookie("access_token", create_access_token(user.id), max_age=settings.access_token_expire_minutes * 60, httponly=True, secure=settings.cookie_secure, samesite="lax", path="/")
-    response.set_cookie("refresh_token", refresh_token, max_age=settings.refresh_token_expire_days * 24 * 60 * 60, httponly=True, secure=settings.cookie_secure, samesite="lax", path="/api/v1/auth")
+    response.set_cookie(
+        "access_token",
+        create_access_token(user.id),
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+    response.set_cookie(
+        "refresh_token",
+        refresh_token,
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/api/v1/auth",
+    )
 
 
 def clear_session_cookies(response: Response, settings: Settings) -> None:
-    response.delete_cookie("access_token", path="/", secure=settings.cookie_secure, samesite="lax")
-    response.delete_cookie("refresh_token", path="/api/v1/auth", secure=settings.cookie_secure, samesite="lax")
+    response.delete_cookie("access_token", path="/", httponly=True, secure=settings.cookie_secure, samesite="lax")
+    response.delete_cookie("refresh_token", path="/api/v1/auth", httponly=True, secure=settings.cookie_secure, samesite="lax")
+
+
+class DevLoginRequest(BaseModel):
+    email: EmailStr = "developer@example.com"
+    name: str = "Developer"
+
+
+@router.post("/dev-login", response_model=UserResponse)
+def dev_login(
+    payload: DevLoginRequest,
+    response: Response,
+    database: Session = Depends(get_db),
+) -> User:
+    """Fast local developer login available in non-production environments."""
+    settings = get_settings()
+    if settings.is_production:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Developer login is disabled in production.")
+
+    dev_google_id = f"dev_{payload.email}"
+    user = upsert_google_user(
+        database,
+        google_id=dev_google_id,
+        email=str(payload.email),
+        name=payload.name,
+        picture=None,
+    )
+    refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
+    set_session_cookies(response, user, refresh_token, settings)
+    return user
 
 
 @router.get("/google/login")
@@ -85,18 +131,18 @@ def current_user(user: User = Depends(get_current_user)) -> User:
 @router.post("/refresh", response_model=UserResponse)
 def refresh_session(request: Request, response: Response, database: Session = Depends(get_db)) -> User:
     settings = get_settings()
-    rotated = rotate_refresh_session(database, request.cookies.get("refresh_token", ""), settings.refresh_token_expire_days)
+    refresh_tok = request.cookies.get("refresh_token", "")
+    rotated = rotate_refresh_session(database, refresh_tok, settings.refresh_token_expire_days)
     if not rotated:
         clear_session_cookies(response, settings)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please sign in again.")
-    user, refresh_token = rotated
-    set_session_cookies(response, user, refresh_token, settings)
+    user, new_refresh = rotated
+    set_session_cookies(response, user, new_refresh, settings)
     return user
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(request: Request, response: Response, database: Session = Depends(get_db)) -> Response:
+def logout(request: Request, response: Response, database: Session = Depends(get_db)) -> None:
     settings = get_settings()
     revoke_refresh_session(database, request.cookies.get("refresh_token"))
     clear_session_cookies(response, settings)
-    return response

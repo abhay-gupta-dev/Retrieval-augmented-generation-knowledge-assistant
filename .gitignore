@@ -9,6 +9,10 @@ frontend/dist/
 frontend/.npm-cache/
 frontend/*.tsbuildinfo
 backend/.env
+backend/.venv311/
 backend/.pytest_cache/
 backend/__pycache__/
 backend/**/__pycache__/
+*-cookies*.txt
+retry-result.json
+timestamp-*.json

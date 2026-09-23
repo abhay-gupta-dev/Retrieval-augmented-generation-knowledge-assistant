@@ -1,4 +1,21 @@
 @import "tailwindcss";
 
-:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
-body { min-width: 320px; min-height: 100vh; margin: 0; }
+:root { font-family: "Avenir Next", "Segoe UI", sans-serif; color: #17201e; background: #f4f7f3; font-synthesis: none; text-rendering: optimizeLegibility; }
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: #f4f7f3; }
+button, input, select { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(13, 148, 136, .35); outline-offset: 2px; }
+.app-shell, .app-main { background: #f4f7f3; }
+.app-sidebar { background: #102522; color: #d8e7df; }
+.app-sidebar .logo-label { color: #fff; }
+.app-sidebar-link { color: #a8c0b6; transition: background-color .18s ease, color .18s ease; }
+.app-sidebar-link:hover { background: rgba(255,255,255,.08); color: #fff; }
+.app-sidebar-link.active { background: #d7f1e8; color: #12352e; }
+.surface { border: 1px solid #dce7e0; background: rgba(255,255,255,.86); box-shadow: 0 18px 45px rgba(24, 52, 43, .06); }
+.dark .app-shell, .dark .app-main { background: #101a18; }
+.dark .surface { border-color: #28413a; background: rgba(20, 35, 31, .9); box-shadow: none; }
+.app-main > section > div.max-w-5xl { height: 100%; min-height: 0; }
+.app-main > section > div.max-w-5xl > section.surface { min-height: 0; overflow-y: auto; }
+.dark input, .dark textarea, .dark select { color: #f1f5f9; caret-color: #6ee7c8; }
+.dark input::placeholder, .dark textarea::placeholder { color: #94a3b8; opacity: 1; }
+.dark input:-webkit-autofill, .dark textarea:-webkit-autofill, .dark select:-webkit-autofill { -webkit-text-fill-color: #f1f5f9; -webkit-box-shadow: 0 0 0 1000px #14231f inset; caret-color: #6ee7c8; }
