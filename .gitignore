@@ -16,3 +16,7 @@ backend/**/__pycache__/
 *-cookies*.txt
 retry-result.json
 timestamp-*.json
+.venv/
+.venv311/
+backend/.venv/
+backend/.venv311/
