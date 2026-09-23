@@ -1,80 +1,94 @@
-# Retrieval-Augmented Knowledge Assistant
+# AI Knowledge Platform
 
-A conversational RAG app that answers general questions and questions about documents you upload. It supports **TXT, Markdown, PDF, and DOCX** files, remembers your saved name and recent conversation locally, and shows retrieved source passages when documents are used. Groq generates answers; embeddings run locally on your computer.
+This repository is being migrated from a learning-oriented Streamlit RAG app to a full-stack AI Knowledge Platform. The original Streamlit files remain in place and are not used by the new application foundation.
 
-## Accounts and database
-
-The first screen lets people create a username and password, then log in. Passwords are stored as secure bcrypt hashes, never as plain text. Each account has a separate document collection and chat history. All user records, documents, chunk embeddings, and messages are persisted in the local SQLite database at `data/assistant.db`.
-
-This local setup is appropriate for learning and development. Before making it public, move the database to a managed service, serve it over HTTPS, add email verification/password reset, protect against brute-force attempts, and manage secrets outside local files.
-
-## Run it
-
-1. Create and activate a virtual environment:
-
-   ```powershell
-   py -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ```
-
-2. Install dependencies:
-
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-3. Copy `.env.example` to `.env`, then set `GROQ_API_KEY` to your Groq API key. The first app start downloads the free local embedding model.
-
-4. Start the app:
-
-   ```powershell
-   streamlit run app.py
-   ```
-
-5. In the browser, upload documents, click **Index uploaded documents**, and ask a question.
-
-## Project layout
-
-| File | Responsibility |
-| --- | --- |
-| `app.py` | Streamlit interface: upload, index, chat, and source display. |
-| `rag.py` | Text extraction, chunking, embeddings, vector search, and grounded response generation. |
-| `data/` | Created at runtime; stores local vectors and chunk metadata. Ignored by Git. |
-| `tests/test_rag.py` | Basic test for the chunking behavior. |
-
-## How this RAG pipeline works
+## Current foundation
 
 ```
-Documents → extract text → split into overlapping chunks → embeddings → local vector store
-Question  → embedding → similarity search ───────────────────────────────┘
-                                      ↓
-                         relevant chunks + question → LLM answer + citations
+frontend/                 React + Vite + Tailwind CSS
+  src/
+    components/           Reusable UI components
+    context/ hooks/ pages/ Reserved for the next UI phases
+    layouts/              Shared page layout
+    services/             REST client
+backend/
+  app/
+    api/                  Versioned REST routers
+    core/                 Typed configuration and future security helpers
+    database/             PostgreSQL/SQLAlchemy connection boundary
+    services/             Future RAG, document, and chat use cases
+    agents/               Reserved for LangGraph agents
+    schemas/ utils/
 ```
 
-- **Ingestion:** Each document becomes small, overlapping sections. Overlap preserves a sentence or idea that crosses a chunk boundary.
-- **Embeddings:** Each chunk and question becomes a list of numbers that represents semantic meaning. This project uses the free local `all-MiniLM-L6-v2` model by default.
-- **Retrieval:** The app compares the question embedding against all document embeddings using cosine similarity and selects the four closest sections.
-- **Generation:** The selected sections are sent with the question to the model, with an instruction to answer only from that evidence. This reduces hallucination and makes answers traceable.
+The React page calls `GET /health` on FastAPI and renders the returned status. This establishes the browser-to-API integration without exposing any authentication, upload, or chat endpoint before its migration is designed and tested.
 
-## Conversation memory
+## Prerequisites
 
-The app remembers the name you save and the last 20 question-and-answer pairs in `data/conversation.json`, on your own computer. Use **Clear conversation** in the sidebar whenever you want to remove it. This is simple short-term memory, not a private cloud account or long-term personal profile.
+- Node.js 20+ and npm
+- Python 3.11+
+- PostgreSQL 16+ with the `vector` extension, required in a later database migration phase
 
-RAG does **not** retrain the model. It gives a general-purpose model fresh, relevant context at question time. Quality depends mostly on clean source documents, sensible chunking, strong retrieval, and strict answer instructions.
+## Run the backend
 
-## Configuration
+From the repository root, use a new Python environment (do not rely on the old `.venv` if it points to a removed Python installation):
 
-Set these optional variables in `.env`:
-
-```env
-CHAT_MODEL=llama-3.1-8b-instant
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+```powershell
+py -3.11 -m venv backend\.venv
+.\backend\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+Copy-Item backend\.env.example backend\.env
+Set-Location backend
+uvicorn app.main:app --reload --port 8000
 ```
 
-Changing the embedding model requires clearing the local knowledge base because different models can produce vectors with different dimensions.
+Visit `http://localhost:8000/health`. It returns:
 
-## Notes
+```json
+{"status":"healthy"}
+```
 
-- Documents, embeddings, and vector search are stored locally in `data/`. Retrieved chunks are sent to Groq only to generate an answer.
-- Scanned PDFs without embedded text need OCR before this app can use them.
-- This is an educational starter. For production, add authentication, per-user collections, access controls, a managed vector database, ingestion queues, evaluations, and monitoring.
+The interactive API documentation is at `http://localhost:8000/docs`.
+
+## Run the frontend
+
+In a second terminal from the repository root:
+
+```powershell
+Set-Location frontend
+Copy-Item .env.example .env
+npm install
+npm run dev
+```
+
+Open the Vite URL (normally `http://localhost:5173`). The page shows `Backend: healthy` when FastAPI is running. Set `VITE_API_BASE_URL` in `frontend/.env` when the API runs elsewhere. `backend/.env` allows only that frontend origin by default.
+
+## Legacy system retained for gradual migration
+
+`app.py`, `auth.py`, and `rag.py` are untouched. They provide the current Streamlit experience:
+
+- local username/password login using bcrypt and a Streamlit session user id;
+- SQLite storage in `data/assistant.db` for users, raw document bytes, chunks with embedding blobs, and messages;
+- TXT, Markdown, PDF, and DOCX extraction; whitespace-token chunks of 900 words with 150-word overlap;
+- local `sentence-transformers` embeddings, in-memory brute-force cosine search, and Groq answer generation;
+- per-user source listing, chat history, and destructive clear actions.
+
+The stale ignored `data/chunks.json`, `data/vectors.npy`, and `data/conversation.json` files are legacy artifacts and conflict with the current SQLite implementation; they are intentionally not consumed by the new foundation.
+
+## Migration plan
+
+1. **Foundation (complete):** introduce React/Vite/Tailwind and FastAPI, strict CORS, environment templates, the health contract, and service/router boundaries. Preserve the legacy application untouched.
+2. **Identity:** add Google OpenID Connect to FastAPI, PostgreSQL `users` and `oauth_accounts` tables, short-lived access JWTs plus rotated refresh tokens in HttpOnly/Secure/SameSite cookies, and React auth state. Map an existing legacy user only through an explicit, verified migration flow; never match solely by display name.
+3. **PostgreSQL and pgvector:** provision PostgreSQL, enable `vector`, introduce Alembic migrations, tenant-aware users/knowledge bases/documents/chunks/messages tables, metadata, content hashes, and vector indexes. Import SQLite data with id mapping, checksums, row counts, and rollback backup.
+4. **Document ingestion:** move uploads to authenticated REST endpoints plus private object storage. Validate content signatures and size, store generated object keys rather than user filenames, enqueue extraction/embedding jobs, record statuses/errors, deduplicate content, and show progress in React.
+5. **RAG parity:** port the existing extraction, chunking, HuggingFace embedding, pgvector similarity retrieval, Groq prompt, citations, and conversation behavior behind backend services. Use evaluation cases from current documents before switching the UI; dual-read or feature-flag the new path until parity is proven.
+6. **Product hardening:** add rate limits, audit logs, observability, backups, encryption/secrets management, authorization checks on every tenant-scoped query, tests, CI, and deployment configuration.
+7. **Agents:** add LangGraph only after the RAG API is stable. Define typed tools, bounded permissions, run tracing, human approval for side effects, and isolated worker execution before allowing multi-agent orchestration.
+
+## Why this sequencing is safe
+
+The old RAG behavior is preserved verbatim while new interfaces are introduced beside it. The database model is not copied mechanically: the current SQLite schema has no migration history, vector metadata, document-ingestion states, or production indexes. Google OAuth is intentionally the next phase, not part of this foundation, so no insecure half-authentication is exposed.
+
+For Google sign-in, use the authorization-code OIDC flow with exact HTTPS callback registration, issuer/audience/nonce validation, a minimal `openid profile email` scope, and server-held client secrets. Google’s OAuth guidance requires exact redirect URI matching and recommends state validation; Streamlit’s own OIDC guidance is also useful context for the current app, but the target architecture will implement this in FastAPI rather than keep auth in Streamlit. [Google OAuth documentation](https://developers.google.com/identity/protocols/oauth2/web-server) [Streamlit OIDC documentation](https://docs.streamlit.io/develop/concepts/connections/authentication)
+
+The future upload service will follow defense in depth: authenticated authorization, allowed types verified by content, file and extraction limits, generated storage names, non-public private storage, parser isolation, and malware scanning where available. [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
