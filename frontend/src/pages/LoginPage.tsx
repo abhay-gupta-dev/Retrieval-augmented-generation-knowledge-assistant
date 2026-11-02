@@ -50,7 +50,7 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
 
   return <main className="h-[100dvh] min-h-[100svh] overflow-y-auto bg-[#f4f7f3] px-4 py-5 dark:bg-[#101a18] sm:px-6 sm:py-6">
     <div className="mx-auto flex max-w-6xl justify-between"><Logo /><ThemeToggle /></div>
-    <div className="mx-auto grid min-h-[calc(100svh-90px)] max-w-6xl items-center gap-8 py-8 lg:grid-cols-[1.1fr_.9fr] lg:gap-24">
+    <div className="mx-auto grid min-h-[calc(100svh-90px)] max-w-6xl items-center gap-5 py-5 sm:gap-8 sm:py-8 lg:grid-cols-[1.1fr_.9fr] lg:gap-24">
       <section className="relative hidden aspect-[4/5] w-full max-w-[470px] place-self-center overflow-hidden rounded-3xl border border-[#d7e6dc] bg-[#e5f0e9] shadow-xl shadow-[#163a32]/10 dark:border-[#28413a] dark:bg-[#14251f] sm:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_47%,rgba(255,255,255,.96)_0%,rgba(250,253,249,.9)_42%,rgba(226,240,231,.75)_100%)] dark:bg-[radial-gradient(ellipse_at_50%_47%,rgba(34,63,53,.95)_0%,rgba(25,47,39,.94)_45%,rgba(16,32,27,.98)_100%)]" />
         <div className="absolute inset-5 rounded-[1.4rem] border border-[#b6cec0] dark:border-[#527160]" />
@@ -71,11 +71,10 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-md space-y-4 sm:hidden">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">Private knowledge, amplified</p>
-        <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight text-slate-950 dark:text-white sm:text-6xl">A calmer way to think with your own knowledge.</h1>
-        <p className="max-w-lg text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg sm:leading-8">Bring documents, conversations, and grounded answers into one focused workspace.</p>
-        <div className="grid max-w-lg grid-cols-3 gap-2 pt-2 text-xs sm:gap-3 sm:pt-4 sm:text-sm"><div><p className="font-bold text-slate-950 dark:text-white">Private</p><p className="mt-1 text-slate-500">Your workspace</p></div><div><p className="font-bold text-slate-950 dark:text-white">Grounded</p><p className="mt-1 text-slate-500">Source-aware answers</p></div><div><p className="font-bold text-slate-950 dark:text-white">Focused</p><p className="mt-1 text-slate-500">Less noise</p></div></div>
+      <section className="mx-auto w-full max-w-md space-y-2 sm:hidden">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">Private knowledge, amplified</p>
+        <h1 className="max-w-xl text-2xl font-bold leading-tight tracking-tight text-slate-950 dark:text-white">A calmer way to think with your own knowledge.</h1>
+        <p className="max-w-lg text-sm leading-6 text-slate-600 dark:text-slate-300">Bring documents and ideas together for thoughtful, grounded answers.</p>
       </section>
 
       <section className="surface mx-auto w-full max-w-md rounded-2xl p-5 sm:p-8">

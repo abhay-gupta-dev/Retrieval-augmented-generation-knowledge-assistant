@@ -1,5 +1,17 @@
 .env
+# Python virtual environments (root and nested project folders)
 .venv/
+.venv*/
+venv/
+venv*/
+env/
+ENV/
+**/.venv/
+**/.venv*/
+**/venv/
+**/venv*/
+**/env/
+**/ENV/
 __pycache__/
 *.py[cod]
 data/
