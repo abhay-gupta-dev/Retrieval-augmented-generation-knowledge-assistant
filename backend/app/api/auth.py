@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
@@ -14,8 +15,16 @@ from app.core.config import Settings, get_settings
 from app.core.security import create_access_token, get_current_user
 from app.database.connection import get_db
 from app.database.models import User
-from app.schemas.auth import UserResponse
-from app.services.auth_service import create_refresh_session, revoke_refresh_session, rotate_refresh_session, upsert_google_user
+import uuid
+from app.schemas.auth import LoginRequest, RegisterRequest, UserResponse
+from app.services.auth_service import (
+    authenticate_user,
+    create_refresh_session,
+    register_user,
+    revoke_refresh_session,
+    rotate_refresh_session,
+    upsert_google_user,
+)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 oauth = OAuth()
@@ -64,6 +73,78 @@ def set_session_cookies(response: Response, user: User, refresh_token: str, sett
 def clear_session_cookies(response: Response, settings: Settings) -> None:
     response.delete_cookie("access_token", path="/", httponly=True, secure=settings.cookie_secure, samesite="lax")
     response.delete_cookie("refresh_token", path="/api/v1/auth", httponly=True, secure=settings.cookie_secure, samesite="lax")
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    payload: RegisterRequest,
+    response: Response,
+    database: Session = Depends(get_db),
+) -> User:
+    """Register a new user with name, email, and password."""
+    settings = get_settings()
+    try:
+        user = register_user(database, name=payload.name, email=payload.email, password=payload.password)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+
+    refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
+    set_session_cookies(response, user, refresh_token, settings)
+    return user
+
+
+@router.post("/login", response_model=UserResponse)
+def login(
+    payload: LoginRequest,
+    response: Response,
+    database: Session = Depends(get_db),
+) -> User:
+    """Authenticate a user using email and password."""
+    settings = get_settings()
+    try:
+        user = authenticate_user(database, email=payload.email, password=payload.password)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(err)) from err
+
+    refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
+    set_session_cookies(response, user, refresh_token, settings)
+    return user
+
+
+@router.post("/guest-login", response_model=UserResponse)
+def guest_login(
+    request: Request,
+    response: Response,
+    database: Session = Depends(get_db),
+) -> User:
+    """Create or reuse an anonymous workspace session without requiring signup."""
+    settings = get_settings()
+    # Check if user already has a valid session cookie
+    token = request.cookies.get("access_token")
+    if token and settings.jwt_secret_key:
+        try:
+            import jwt
+            payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+            if payload.get("type") == "access":
+                user_id = uuid.UUID(payload["sub"])
+                existing = database.get(User, user_id)
+                if existing:
+                    return existing
+        except Exception:
+            pass
+
+    guest_id = uuid4().hex
+    user = upsert_google_user(
+        database,
+        google_id=f"guest_{guest_id}",
+        email=f"guest_{guest_id}@example.com",
+        name="Guest",
+        picture=None,
+        provider="guest",
+    )
+    refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
+    set_session_cookies(response, user, refresh_token, settings)
+    return user
 
 
 class DevLoginRequest(BaseModel):
@@ -118,7 +199,7 @@ async def google_callback(request: Request, database: Session = Depends(get_db))
     except (OAuthError, RuntimeError):
         return login_error_redirect(settings, "Google login failed. Please try again.")
 
-    response = RedirectResponse(f"{settings.frontend_url}/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(f"{settings.frontend_url}/chat?auth=1", status_code=status.HTTP_303_SEE_OTHER)
     set_session_cookies(response, user, refresh_token, settings)
     return response
 

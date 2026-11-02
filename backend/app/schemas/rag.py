@@ -56,7 +56,8 @@ class ChatSessionCreate(BaseModel):
 
 
 class ChatSessionUpdate(BaseModel):
-    title: str = Field(min_length=1, max_length=160)
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    knowledge_base_id: UUID | None = None
 
 
 class ChatSessionResponse(BaseModel):

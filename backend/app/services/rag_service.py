@@ -30,27 +30,30 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 def retrieve(
     database: Session,
-    knowledge_base_id: UUID,
+    knowledge_base_id: UUID | None,
     question: str,
     user_id: UUID | None = None,
     limit: int = 5,
 ) -> list[tuple[DocumentChunk, Document, float]]:
     """Retrieve top-K similar document chunks using pgvector cosine distance with ownership defense."""
-    query = (
-        select(DocumentChunk, Document)
+    if not knowledge_base_id:
+        return []
+
+    # Only embed a query when there is indexed content to search. Queued,
+    # processing, failed, or empty documents should not make general chat
+    # depend on loading the embedding model.
+    indexed_chunk = database.scalar(
+        select(DocumentChunk.id)
         .join(Document, Document.id == DocumentChunk.document_id)
         .join(KnowledgeBase, KnowledgeBase.id == Document.knowledge_base_id)
         .where(
             Document.knowledge_base_id == knowledge_base_id,
             Document.status.in_(["ready", "indexed"]),
+            *( [KnowledgeBase.owner_id == user_id] if user_id else [] )
         )
+        .limit(1)
     )
-    if user_id:
-        query = query.where(KnowledgeBase.owner_id == user_id)
-
-    # Check if any documents exist in this KB
-    has_docs = database.scalar(select(Document.id).where(Document.knowledge_base_id == knowledge_base_id).limit(1))
-    if not has_docs:
+    if indexed_chunk is None:
         return []
 
     query_embedding = embed_texts([question])[0]
@@ -77,45 +80,60 @@ def build_rag_prompt(
     question: str,
     history: list[dict[str, str]],
 ) -> tuple[list[dict[str, str]], list[Citation]]:
-    citations = [
-        Citation(
-            document_id=document.id,
-            filename=document.original_filename,
-            chunk_index=chunk.chunk_index,
-            excerpt=chunk.content[:320],
+    if sources:
+        citations = [
+            Citation(
+                document_id=document.id,
+                filename=document.original_filename,
+                chunk_index=chunk.chunk_index,
+                excerpt=chunk.content[:320],
+            )
+            for chunk, document, _ in sources
+        ]
+
+        context_blocks: list[str] = []
+        for index, ((chunk, _, _), citation) in enumerate(zip(sources, citations, strict=True)):
+            context_blocks.append(f"[Source {index + 1}: {citation.filename}, chunk {citation.chunk_index}]\n{chunk.content}")
+
+        context_str = "\n\n".join(context_blocks)
+
+        system_prompt = (
+            "You are Cognitive Assistant, an intelligent, helpful, and precise AI knowledge assistant.\n"
+            "Guidelines:\n"
+            "1. Ground your answers primarily in the provided Document Context whenever relevant.\n"
+            "2. When making factual claims supported by the context, cite the source using the exact tag [Source N] (e.g. [Source 1]).\n"
+            "3. If the context does not contain enough information to fully answer, answer as helpfully and accurately as possible while noting what is not found in the documents. Do not invent citations.\n"
+            "4. Format answers cleanly using Markdown (use headings, bullet points, bold text, tables, and code blocks where helpful).\n"
+            "5. Maintain a professional, articulate, and friendly tone."
         )
-        for chunk, document, _ in sources
-    ]
 
-    context_blocks: list[str] = []
-    for index, ((chunk, _, _), citation) in enumerate(zip(sources, citations, strict=True)):
-        context_blocks.append(f"[Source {index + 1}: {citation.filename}, chunk {citation.chunk_index}]\n{chunk.content}")
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history[-8:])
+        messages.append({
+            "role": "user",
+            "content": f"Document Context:\n{context_str}\n\nUser Question: {question}",
+        })
+        return messages, citations
 
-    context_str = "\n\n".join(context_blocks) if context_blocks else "No relevant indexed documents found in the selected knowledge base."
-
+    # General conversation without document context
+    citations = []
     system_prompt = (
-        "You are Cognitive Assistant, an intelligent and helpful AI assistant for the user's private knowledge base.\n"
+        "You are Cognitive Assistant, an intelligent, thoughtful, and articulate AI knowledge assistant inspired by Claude.\n"
         "Guidelines:\n"
-        "1. Ground your answers primarily in the provided Document Context whenever relevant.\n"
-        "2. When making factual claims supported by the context, cite the source using the exact tag [Source N] (e.g. [Source 1]).\n"
-        "3. If the context does not contain enough information to fully answer, answer as helpfully as possible while noting what is not found in the documents.\n"
-        "4. Format answers cleanly using Markdown (use headings, bullet points, bold text, and code blocks where helpful).\n"
-        "5. Maintain a professional, articulate, and friendly tone."
+        "1. Provide clear, comprehensive, and well-structured answers.\n"
+        "2. Format answers beautifully using Markdown (use headings, bullet points, numbered lists, math notation, and syntax-highlighted code blocks where appropriate).\n"
+        "3. If the user asks about specific uploaded files or personal knowledge but none are selected or uploaded, gently mention that they can upload files (TXT, Markdown, PDF, DOCX) to get grounded answers with source citations.\n"
+        "4. Maintain a calm, friendly, and highly professional tone."
     )
-
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history[-8:])
-    messages.append({
-        "role": "user",
-        "content": f"Document Context:\n{context_str}\n\nUser Question: {question}",
-    })
-
+    messages.append({"role": "user", "content": question})
     return messages, citations
 
 
 def answer_question(
     database: Session,
-    knowledge_base_id: UUID,
+    knowledge_base_id: UUID | None,
     question: str,
     history: list[dict[str, str]],
     user_id: UUID | None = None,
@@ -125,7 +143,7 @@ def answer_question(
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not configured on the server.")
 
-    sources = retrieve(database, knowledge_base_id, question, user_id=user_id)
+    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id else []
     messages, citations = build_rag_prompt(sources, question, history)
 
     try:
@@ -154,7 +172,7 @@ def answer_question(
 
 def stream_answer_question(
     database: Session,
-    knowledge_base_id: UUID,
+    knowledge_base_id: UUID | None,
     question: str,
     history: list[dict[str, str]],
     user_id: UUID | None = None,
@@ -164,7 +182,7 @@ def stream_answer_question(
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not configured on the server.")
 
-    sources = retrieve(database, knowledge_base_id, question, user_id=user_id)
+    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id else []
     messages, citations = build_rag_prompt(sources, question, history)
 
     # First event: citations

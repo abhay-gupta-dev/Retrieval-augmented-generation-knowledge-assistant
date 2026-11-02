@@ -51,7 +51,7 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
   }, []);
 
   if (!Recognition) {
-    return <output className="self-center text-xs text-slate-500">Voice input unavailable</output>;
+    return <output className="hidden self-center text-xs text-slate-500 sm:block">Voice input unavailable</output>;
   }
 
   function toggleListening() {
@@ -63,22 +63,16 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
 
     recognitionRef.current?.stop();
     const recognition = new Recognition();
-    console.debug("[voice] recognition created", { constructor: Recognition.name });
     transcriptRef.current = "";
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-IN";
     recognition.maxAlternatives = 1;
-    recognition.onstart = () => {
-      console.debug("[voice] recognition onstart", { lang: recognition.lang, interimResults: recognition.interimResults });
-    };
     recognition.onresult = (event) => {
       const results = Array.from({ length: event.results.length }, (_, index) => event.results[index][0].transcript);
       transcriptRef.current = results.join(" ").trim();
-      console.debug("[voice] recognition onresult", { resultCount: event.results.length, transcript: transcriptRef.current });
     };
     recognition.onerror = (event) => {
-      console.debug("[voice] recognition onerror", { error: event.error });
       setState("error");
       const messages: Record<string, string> = {
         "audio-capture": "No microphone was found or it is already in use.",
@@ -95,9 +89,7 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     };
     recognition.onend = () => {
       const transcript = transcriptRef.current.trim();
-      console.debug("[voice] recognition onend", { transcript });
       if (transcript) {
-        console.debug("[voice] transcript received", { transcript });
         onTranscript(transcript);
       }
       setState((current) => current === "error" ? current : "stopped");
@@ -107,7 +99,6 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     setMessage("");
     setState("listening");
     try {
-      console.debug("[voice] recognition.start()", { lang: recognition.lang });
       recognition.start();
     } catch {
       recognitionRef.current = null;

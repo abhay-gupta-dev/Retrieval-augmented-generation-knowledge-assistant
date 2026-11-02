@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.knowledge_base import owned_knowledge_base
@@ -130,9 +130,14 @@ def rename_chat(
     user: User = Depends(get_current_user),
     database: Session = Depends(get_db),
 ) -> ChatSessionResponse:
-    """Rename a chat session."""
+    """Update a conversation title or its attached knowledge base."""
     session = owned_session(database, user, session_id)
-    session.title = payload.title.strip()
+    if payload.title is not None:
+        session.title = payload.title.strip()
+    if "knowledge_base_id" in payload.model_fields_set:
+        if payload.knowledge_base_id is not None:
+            owned_knowledge_base(database, user, payload.knowledge_base_id)
+        session.knowledge_base_id = payload.knowledge_base_id
     database.commit()
     database.refresh(session)
 
@@ -157,6 +162,16 @@ def delete_chat(
     database.commit()
 
 
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def clear_all_chats(
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> None:
+    """Clear all chat sessions for the current user."""
+    database.execute(delete(ChatSession).where(ChatSession.user_id == user.id))
+    database.commit()
+
+
 @router.get("/{session_id}/messages", response_model=list[MessageResponse])
 def list_messages(
     session_id: UUID,
@@ -171,6 +186,11 @@ def list_messages(
     return [message_response(m) for m in messages]
 
 
+def resolve_active_kb_id(session: ChatSession) -> UUID | None:
+    """Use only the knowledge base explicitly attached to this conversation."""
+    return session.knowledge_base_id
+
+
 @router.post("/{session_id}/messages", response_model=ChatReply)
 def send_message(
     session_id: UUID,
@@ -178,13 +198,9 @@ def send_message(
     user: User = Depends(get_current_user),
     database: Session = Depends(get_db),
 ) -> ChatReply:
-    """Send a user message and synchronously generate a RAG answer."""
+    """Send a user message and generate a RAG or assistant answer."""
     session = owned_session(database, user, session_id)
-    if not session.knowledge_base_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Select a knowledge base before asking a question.",
-        )
+    kb_id = resolve_active_kb_id(session)
 
     user_message = ChatMessage(session_id=session.id, role="user", content=payload.content.strip())
     database.add(user_message)
@@ -198,7 +214,7 @@ def send_message(
     try:
         answer, citations = answer_question(
             database=database,
-            knowledge_base_id=session.knowledge_base_id,
+            knowledge_base_id=kb_id,
             question=user_message.content,
             history=history,
             user_id=user.id,
@@ -216,7 +232,7 @@ def send_message(
     database.add(assistant_message)
 
     if session.title == "New conversation":
-        session.title = payload.content.strip()[:100]
+        session.title = payload.content.strip()[:60] or "New conversation"
     session.updated_at = func.now()
 
     database.commit()
@@ -237,11 +253,7 @@ def stream_message(
 ):
     """Send a user message and stream back tokens via Server-Sent Events (SSE)."""
     session = owned_session(database, user, session_id)
-    if not session.knowledge_base_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Select a knowledge base before asking a question.",
-        )
+    kb_id = resolve_active_kb_id(session)
 
     user_msg_content = payload.content.strip()
     user_message = ChatMessage(session_id=session.id, role="user", content=user_msg_content)
@@ -254,13 +266,12 @@ def stream_message(
     history = [{"role": m.role, "content": m.content} for m in past_messages]
 
     if session.title == "New conversation":
-        session.title = user_msg_content[:100]
+        session.title = user_msg_content[:60] or "New conversation"
     session.updated_at = func.now()
 
     database.commit()
     user_msg_id = user_message.id
     user_created_at = user_message.created_at.isoformat()
-    kb_id = session.knowledge_base_id
     sess_id = session.id
     current_user_id = user.id
 
@@ -290,7 +301,6 @@ def stream_message(
                     yield f"event: error\ndata: {json.dumps({'error': event.get('error', 'Unknown error')})}\n\n"
                 elif event_type == "done":
                     full_content = event.get("full_content", "")
-                    # Persist assistant message in database
                     ast_msg = ChatMessage(
                         session_id=sess_id,
                         role="assistant",
@@ -307,7 +317,12 @@ def stream_message(
         finally:
             stream_db.close()
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @router.post("/{session_id}/retry", response_model=ChatReply)
@@ -318,17 +333,14 @@ def retry_message(
 ) -> ChatReply:
     """Regenerate the response for the most recent user message."""
     session = owned_session(database, user, session_id)
-    if not session.knowledge_base_id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No knowledge base selected.")
+    kb_id = resolve_active_kb_id(session)
 
-    # Find the last assistant message and last user message
     messages = list(database.scalars(
         select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc())
     ))
     if not messages:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No messages to retry.")
 
-    # Find last user message
     last_user_idx = None
     for i in range(len(messages) - 1, -1, -1):
         if messages[i].role == "user":
@@ -350,7 +362,7 @@ def retry_message(
     try:
         answer, citations = answer_question(
             database=database,
-            knowledge_base_id=session.knowledge_base_id,
+            knowledge_base_id=kb_id,
             question=user_message.content,
             history=history,
             user_id=user.id,

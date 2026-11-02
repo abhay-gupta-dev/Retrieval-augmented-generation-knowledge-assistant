@@ -39,8 +39,11 @@ py -3.11 -m venv backend\.venv
 pip install -r backend\requirements.txt
 Copy-Item backend\.env.example backend\.env
 Set-Location backend
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
+
+Run `alembic upgrade head` again after pulling or applying a database migration. This creates the password-auth columns needed for email sign-up and login.
 
 Visit `http://localhost:8000/health`. It returns:
 
@@ -61,7 +64,13 @@ npm install
 npm run dev
 ```
 
-Open the Vite URL (normally `http://localhost:5173`). The page shows `Backend: healthy` when FastAPI is running. Set `VITE_API_BASE_URL` in `frontend/.env` when the API runs elsewhere. `backend/.env` allows only that frontend origin by default.
+Open the Vite URL at `http://127.0.0.1:5173` for local development. Local API requests use Vite's same-origin proxy to `http://127.0.0.1:8000`, which keeps session cookies working. Leave `VITE_API_URL` empty for local development. The Google OAuth redirect URI in the Google Cloud Console must exactly match `GOOGLE_REDIRECT_URI` in `backend/.env`. For a separately deployed API, set `VITE_API_URL` in `frontend/.env` and allow the frontend origin in `backend/.env`.
+
+## Install as an app
+
+The frontend is configured as an installable, responsive Progressive Web App. Build and deploy the `frontend/dist` directory to a site served over HTTPS (localhost is allowed for local development). On Android, open the site in Chrome and choose **Install app**; on iPhone/iPad, open it in Safari and choose **Share → Add to Home Screen**. The app shell and static assets can load offline after the first visit; API features still require the FastAPI backend to be reachable.
+
+People can use a guest workspace without creating an account. Email/password registration and sign-in, plus Google sign-in, are also available from the account screen. Guest and account features that save documents or conversations still need the backend and PostgreSQL running. For phone access, deploy the backend at a public HTTPS address, set `VITE_API_URL` to that address before building the frontend, and allow the website origin in `CORS_ORIGINS` in `backend/.env`; `localhost` on a phone points to the phone itself, not your computer.
 
 ## Legacy system retained for gradual migration
 

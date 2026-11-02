@@ -38,6 +38,30 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def hash_password(password: str) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with 260,000 rounds and 16-byte random salt."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 260_000)
+    return f"pbkdf2_sha256$260000${salt}${key.hex()}"
+
+
+def verify_password(plain_password: str, password_hash: str | None) -> bool:
+    """Verify password hash using constant-time comparison."""
+    if not password_hash or not plain_password:
+        return False
+    try:
+        import hmac
+
+        algorithm, iterations_str, salt, stored_hash = password_hash.split("$")
+        if algorithm != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_str)
+        computed_key = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), iterations)
+        return hmac.compare_digest(computed_key.hex(), stored_hash)
+    except Exception:
+        return False
+
+
 def _unauthorized(detail: str = "Authentication required") -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail, headers={"WWW-Authenticate": "Bearer"})
 

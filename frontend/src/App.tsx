@@ -7,7 +7,9 @@ import { LoginPage } from "./pages/LoginPage";
 
 export default function App() {
   return <Routes>
+    <Route path="/" element={<Navigate to="/chat" replace />} />
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/account" element={<LoginPage allowAuthenticated />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
@@ -16,6 +18,6 @@ export default function App() {
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Route>
-    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <Route path="*" element={<Navigate to="/chat" replace />} />
   </Routes>;
 }

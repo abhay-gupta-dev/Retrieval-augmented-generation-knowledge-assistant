@@ -1,21 +1,118 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
-:root { font-family: "Avenir Next", "Segoe UI", sans-serif; color: #17201e; background: #f4f7f3; font-synthesis: none; text-rendering: optimizeLegibility; }
-* { box-sizing: border-box; }
-body { min-width: 320px; min-height: 100vh; margin: 0; background: #f4f7f3; }
-button, input, select { font: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(13, 148, 136, .35); outline-offset: 2px; }
-.app-shell, .app-main { background: #f4f7f3; }
-.app-sidebar { background: #102522; color: #d8e7df; }
-.app-sidebar .logo-label { color: #fff; }
-.app-sidebar-link { color: #a8c0b6; transition: background-color .18s ease, color .18s ease; }
-.app-sidebar-link:hover { background: rgba(255,255,255,.08); color: #fff; }
-.app-sidebar-link.active { background: #d7f1e8; color: #12352e; }
-.surface { border: 1px solid #dce7e0; background: rgba(255,255,255,.86); box-shadow: 0 18px 45px rgba(24, 52, 43, .06); }
-.dark .app-shell, .dark .app-main { background: #101a18; }
-.dark .surface { border-color: #28413a; background: rgba(20, 35, 31, .9); box-shadow: none; }
-.app-main > section > div.max-w-5xl { height: 100%; min-height: 0; }
-.app-main > section > div.max-w-5xl > section.surface { min-height: 0; overflow-y: auto; }
-.dark input, .dark textarea, .dark select { color: #f1f5f9; caret-color: #6ee7c8; }
-.dark input::placeholder, .dark textarea::placeholder { color: #94a3b8; opacity: 1; }
-.dark input:-webkit-autofill, .dark textarea:-webkit-autofill, .dark select:-webkit-autofill { -webkit-text-fill-color: #f1f5f9; -webkit-box-shadow: 0 0 0 1000px #14231f inset; caret-color: #6ee7c8; }
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background-color: #191817;
+  color: #ececec;
+  overflow: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Claude-style warm dark colors */
+.dark-theme {
+  --bg-canvas: #191817;
+  --bg-sidebar: #141312;
+  --bg-surface: #22211e;
+  --bg-input: #262522;
+  --border-subtle: #32302c;
+  --border-muted: #42403b;
+  --text-primary: #ececec;
+  --text-secondary: #a8a29e;
+  --text-muted: #78716c;
+  --accent-amber: #d97706;
+}
+
+/* Light theme overrides */
+html:not(.dark) body {
+  background-color: #faf9f6;
+  color: #1c1917;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.surface {
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #1e293b;
+}
+
+.dark .surface {
+  border-color: #32302c;
+  background-color: #201f1c;
+  color: #ececec;
+}
+
+html:not(.dark) .text-slate-400:not([class*="dark:text-"]) {
+  color: #64748b;
+}
+
+html:not(.dark) .text-slate-500:not([class*="dark:text-"]) {
+  color: #475569;
+}
+
+.dark .text-slate-400:not([class*="dark:text-"]),
+.dark .text-slate-500:not([class*="dark:text-"]),
+.dark .text-slate-600:not([class*="dark:text-"]) {
+  color: #cbd5e1;
+}
+
+@media (max-width: 639px) {
+  body {
+    overflow: hidden;
+  }
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #d97706;
+  outline-offset: 1px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-message {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.pulse-typing {
+  animation: pulseGlow 1.4s ease-in-out infinite;
+}

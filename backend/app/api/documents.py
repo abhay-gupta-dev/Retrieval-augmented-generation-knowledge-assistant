@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -82,6 +83,35 @@ async def upload_document(
 
     background_tasks.add_task(index_document, document.id)
     return document
+
+
+@router.get("/{document_id}/file")
+def open_document_file(
+    knowledge_base_id: UUID,
+    document_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> FileResponse:
+    """Open a source file belonging to an owned knowledge base."""
+    owned_knowledge_base(database, user, knowledge_base_id)
+    document = database.scalar(
+        select(Document).where(
+            Document.id == document_id,
+            Document.knowledge_base_id == knowledge_base_id,
+        )
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    path = storage_path(document.storage_key)
+    if not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found.")
+    return FileResponse(
+        path,
+        media_type=document.content_type or "application/octet-stream",
+        filename=document.original_filename,
+        content_disposition_type="inline",
+    )
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

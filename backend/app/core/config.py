@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "AI Knowledge Platform"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/knowledge_platform"
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "http://127.0.0.1:5173"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     google_client_id: str = ""
