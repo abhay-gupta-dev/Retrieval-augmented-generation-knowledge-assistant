@@ -1,13 +1,14 @@
 """Embedding, pgvector retrieval, and citation-aware answer generation."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import Generator
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from groq import APIError, Groq
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,9 +16,18 @@ from app.core.config import get_settings
 from app.database.models import Document, DocumentChunk, KnowledgeBase
 from app.schemas.rag import Citation
 
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+
 
 @lru_cache
 def embedding_model() -> SentenceTransformer:
+    # PyTorch and sentence-transformers consume substantial RAM at import and
+    # model load time. Keep them out of web-service startup so auth, chat, and
+    # health checks can run on small instances; load them only when indexing or
+    # searching a document actually needs embeddings.
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(get_settings().embedding_model)
 
 
