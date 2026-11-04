@@ -162,8 +162,8 @@ export function DashboardLayout() {
       </aside>
 
       <section className="app-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 sm:h-16 sm:px-6">
+        <header className="shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] max-[380px]:pt-[max(2.75rem,calc(env(safe-area-inset-top)_+_1.5rem))] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
+          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Open navigation"
