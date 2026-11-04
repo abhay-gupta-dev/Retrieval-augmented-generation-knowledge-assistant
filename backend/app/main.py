@@ -24,14 +24,12 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Render's newly provisioned Postgres database starts empty. Apply schema
-    # migrations before accepting requests so guest signup/auth endpoints do
-    # not fail with missing-table errors after deployment.
-    if settings.is_production:
-        backend_dir = Path(__file__).resolve().parents[1]
-        migration_config = Config(str(backend_dir / "alembic.ini"))
-        migration_config.set_main_option("script_location", str(backend_dir / "alembic"))
-        command.upgrade(migration_config, "head")
+    # New hosted databases start empty. Apply schema migrations before any
+    # request so auth and guest endpoints cannot run against missing tables.
+    backend_dir = Path(__file__).resolve().parents[1]
+    migration_config = Config(str(backend_dir / "alembic.ini"))
+    migration_config.set_main_option("script_location", str(backend_dir / "alembic"))
+    command.upgrade(migration_config, "head")
     yield
 
 app = FastAPI(
