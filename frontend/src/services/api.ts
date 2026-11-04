@@ -90,17 +90,19 @@ export function subscribeToChatHistoryChanges(callback: () => void): () => void 
   return () => window.removeEventListener(chatHistoryChangedEvent, callback);
 }
 
-const apiBaseUrl = (
-  import.meta.env.VITE_API_URL ??
-  import.meta.env.VITE_API_BASE_URL ??
-  ""
-).replace(/\/$/, "");
+// Production requests stay on the Vercel origin and are reverse-proxied to
+// Render by vercel.json. This keeps the browser session cookie first-party.
+// Vite's dev proxy handles local requests the same way.
+const apiBaseUrl = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "")
+  : "";
 
 export function googleLoginUrl(): string {
   // Start OAuth on the callback host itself so its state cookie is available
   // when Google returns to the registered 127.0.0.1 callback URL.
-  const googleAuthBaseUrl = import.meta.env.VITE_GOOGLE_AUTH_URL ||
-    (import.meta.env.DEV ? "http://127.0.0.1:8000" : apiBaseUrl);
+  const googleAuthBaseUrl = import.meta.env.DEV
+    ? (import.meta.env.VITE_GOOGLE_AUTH_URL || "http://127.0.0.1:8000")
+    : "";
   return `${googleAuthBaseUrl}/api/v1/auth/google/login`;
 }
 

@@ -2,6 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://retrieval-augmented-generation-knowledge.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://retrieval-augmented-generation-knowledge.onrender.com/health"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
