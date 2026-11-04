@@ -1,5 +1,11 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -15,10 +21,24 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Render's newly provisioned Postgres database starts empty. Apply schema
+    # migrations before accepting requests so guest signup/auth endpoints do
+    # not fail with missing-table errors after deployment.
+    if settings.is_production:
+        backend_dir = Path(__file__).resolve().parents[1]
+        migration_config = Config(str(backend_dir / "alembic.ini"))
+        migration_config.set_main_option("script_location", str(backend_dir / "alembic"))
+        command.upgrade(migration_config, "head")
+    yield
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     description="Production-grade AI Knowledge Platform & RAG Assistant API.",
+    lifespan=lifespan,
 )
 
 if settings.is_production and not settings.session_secret_key:
