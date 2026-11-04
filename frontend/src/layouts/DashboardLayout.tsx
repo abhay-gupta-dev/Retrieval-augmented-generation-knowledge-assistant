@@ -162,7 +162,7 @@ export function DashboardLayout() {
       </aside>
 
       <section className="app-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
+        <header className="shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[max(env(safe-area-inset-top),0.75rem)] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 sm:h-16 sm:px-6">
             <button
               onClick={() => setMenuOpen(true)}
