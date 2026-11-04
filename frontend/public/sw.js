@@ -1,4 +1,5 @@
-const CACHE_NAME = "knowledge-platform-v2";
+// Bump this whenever the app shell changes so installed phones discard stale UI.
+const CACHE_NAME = "knowledge-platform-v3";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
