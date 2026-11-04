@@ -280,7 +280,7 @@ export function ChatPage() {
     }
   }
 
-  return <div className="mx-auto flex h-full min-h-0 w-full max-w-none flex-col gap-2">
+  return <div className="mx-auto flex h-full min-h-0 w-full max-w-none flex-col gap-2 max-[380px]:pt-4">
     <section className="surface min-h-0 flex-1 space-y-5 overflow-y-auto rounded-2xl p-3 sm:p-6" aria-live="polite">
       {messages.length === 0 && <div className="flex min-h-64 items-center justify-center text-center"><div>
         <p className="text-4xl" aria-hidden="true">✦</p>
