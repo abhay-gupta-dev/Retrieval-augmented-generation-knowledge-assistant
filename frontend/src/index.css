@@ -93,6 +93,18 @@ html:not(.dark) .text-slate-500:not([class*="dark:text-"]) {
   }
 }
 
+/* Android browser chrome can overlap the app edge on compact phone screens.
+   Keep the top bar and its menu contents clearly below that area. */
+@media (max-width: 767px) {
+  .app-mobile-header {
+    padding-top: max(56px, calc(env(safe-area-inset-top) + 48px)) !important;
+  }
+
+  .app-mobile-sidebar {
+    padding-top: max(56px, calc(env(safe-area-inset-top) + 48px)) !important;
+  }
+}
+
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid #d97706;
   outline-offset: 1px;

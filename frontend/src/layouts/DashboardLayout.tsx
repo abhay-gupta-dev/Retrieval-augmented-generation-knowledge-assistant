@@ -141,7 +141,7 @@ export function DashboardLayout() {
         id="mobile-navigation"
         aria-label="Mobile navigation"
         aria-hidden={!menuOpen}
-        className={`app-sidebar fixed inset-y-0 left-0 z-30 flex h-[100dvh] min-h-[100svh] w-72 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 pt-[calc(env(safe-area-inset-top)_+_1rem)] text-slate-800 transition-transform dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:hidden ${
+        className={`app-sidebar app-mobile-sidebar fixed inset-y-0 left-0 z-30 flex h-[100dvh] min-h-[100svh] w-72 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 pt-[calc(env(safe-area-inset-top)_+_1rem)] text-slate-800 transition-transform dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:hidden ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -162,7 +162,7 @@ export function DashboardLayout() {
       </aside>
 
       <section className="app-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] max-[380px]:pt-[max(2.75rem,calc(env(safe-area-inset-top)_+_1.5rem))] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
+        <header className="app-mobile-header shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
             <button
               onClick={() => setMenuOpen(true)}
