@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LogIn, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
@@ -138,6 +138,9 @@ export function DashboardLayout() {
         />
       )}
       <aside
+        id="mobile-navigation"
+        aria-label="Mobile navigation"
+        aria-hidden={!menuOpen}
         className={`app-sidebar fixed inset-y-0 left-0 z-30 flex h-[100dvh] min-h-[100svh] w-72 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-slate-800 transition-transform dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:hidden ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -148,8 +151,8 @@ export function DashboardLayout() {
             <button
               onClick={() => setMenuOpen(false)}
               aria-label="Close navigation"
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
-            >×</button>
+              className="grid size-11 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+            ><X className="size-5" /></button>
           </div>
           <NewChatButton />
           <Navigation onNavigate={() => setMenuOpen(false)} />
@@ -164,8 +167,11 @@ export function DashboardLayout() {
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Open navigation"
-              className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"
-            >☰</button>
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
+              title="Open menu, chat history, and account"
+              className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600 dark:border-[#3a3935] dark:bg-[#1c1b18] dark:text-slate-100 dark:hover:bg-white/10 md:hidden"
+            ><Menu className="size-5" /></button>
             <div className="md:hidden"><Logo compact /></div>
             <button
               type="button"
