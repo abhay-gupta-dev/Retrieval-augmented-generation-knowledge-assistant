@@ -222,6 +222,16 @@ export function ChatPage() {
     });
   }
 
+  function markChatAsCurrent(chatId: string) {
+    if (requestedChatId === chatId) return;
+    try {
+      window.sessionStorage.setItem(savedChatOpenIntentKey, chatId);
+    } catch {
+      // The route still updates when session storage is unavailable.
+    }
+    navigate(`/chat?chat=${encodeURIComponent(chatId)}`, { replace: true });
+  }
+
   function stageAttachments(files: File[]) {
     const attachments = files.map((file) => {
       const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
@@ -277,9 +287,6 @@ export function ChatPage() {
         const chat = await createChat(activeKnowledgeBaseId || null);
         activeSessionId = chat.id;
         setSessionId(chat.id);
-        if (newChatRequested) {
-          window.history.replaceState(window.history.state, "", "/chat");
-        }
         notifyChatHistoryChanged();
       } else if (attachments.length > 0 && activeKnowledgeBaseId && activeKnowledgeBaseId !== baseId) {
         await attachKnowledgeBaseToChat(activeSessionId, activeKnowledgeBaseId);
@@ -334,6 +341,7 @@ export function ChatPage() {
           }
           setImagePreviews((current) => ({ ...current, [reply.user_message.id]: previewUrl! }));
           setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
+          markChatAsCurrent(activeSessionId);
           notifyChatHistoryChanged();
         }
         setUploading(false);
@@ -353,6 +361,7 @@ export function ChatPage() {
         setPendingAttachments([]);
         setNotice("");
         setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
+        markChatAsCurrent(activeSessionId);
         notifyChatHistoryChanged();
         return;
       }
@@ -390,6 +399,7 @@ export function ChatPage() {
             setMessages((current) => current.at(-1)?.id === `stream-${activeSessionId}`
               ? [...current.slice(0, -1), complete]
               : [...current, complete]);
+            markChatAsCurrent(activeSessionId);
             notifyChatHistoryChanged();
           },
         });
@@ -408,6 +418,7 @@ export function ChatPage() {
             ? [...withoutPartial, reply.assistant_message]
             : [...withoutPartial, reply.user_message, reply.assistant_message];
         });
+        markChatAsCurrent(activeSessionId);
         notifyChatHistoryChanged();
       }
     } catch (cause) {
