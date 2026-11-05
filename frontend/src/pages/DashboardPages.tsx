@@ -344,8 +344,8 @@ export function ChatPage() {
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
       </div></div>}
       {messages.map((message) => <article key={message.id} className={`w-full break-words ${message.role === "user" ? "ml-auto max-w-[95%] rounded-2xl bg-[#163a32] p-4 text-white sm:max-w-[78%] sm:p-5" : "mr-auto max-w-full py-1 text-slate-900 dark:text-white"}`}>
-        {message.role === "user" && imagePreviews[message.id] && <img src={imagePreviews[message.id]} alt="Image attached to this message" className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
-        {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p>}
+        {message.role === "user" && (message.attachment_url || imagePreviews[message.id]) && <img src={message.attachment_url || imagePreviews[message.id]} alt="Image attached to this message" className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
+        {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.attachment_url ? message.content && <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
         <div className="mt-3 flex items-center gap-2">
           <button type="button" onClick={() => void copyMessage(message)} aria-label={copiedMessageId === message.id ? "Message copied" : "Copy message"} title={copiedMessageId === message.id ? "Copied" : "Copy"} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-current opacity-60 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10">

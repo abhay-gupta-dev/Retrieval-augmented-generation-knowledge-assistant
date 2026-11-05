@@ -83,6 +83,7 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     citations: list[Citation] = []
+    attachment_url: str | None = None
     created_at: datetime
 
 

@@ -5,10 +5,10 @@ import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from groq import APIError, Groq
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from app.api.knowledge_base import owned_knowledge_base
 from app.core.config import get_settings
@@ -48,6 +48,10 @@ def message_response(message: ChatMessage) -> MessageResponse:
         role=message.role,
         content=message.content,
         citations=decode_citations(message.citations),
+        attachment_url=(
+            f"/api/v1/chat/{message.session_id}/messages/{message.id}/image"
+            if message.attachment_content_type else None
+        ),
         created_at=message.created_at,
     )
 
@@ -189,6 +193,28 @@ def list_messages(
     return [message_response(m) for m in messages]
 
 
+@router.get("/{session_id}/messages/{message_id}/image")
+def get_message_image(
+    session_id: UUID,
+    message_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> Response:
+    session = owned_session(database, user, session_id)
+    message = database.scalar(
+        select(ChatMessage)
+        .options(undefer(ChatMessage.attachment_data))
+        .where(ChatMessage.id == message_id, ChatMessage.session_id == session.id)
+    )
+    if not message or not message.attachment_data or not message.attachment_content_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
+    return Response(
+        content=message.attachment_data,
+        media_type=message.attachment_content_type,
+        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 def resolve_active_kb_id(session: ChatSession) -> UUID | None:
     """Use only the knowledge base explicitly attached to this conversation."""
     return session.knowledge_base_id
@@ -273,8 +299,15 @@ def send_image(
     session = owned_session(database, user, session_id)
     filename = (image.filename or "uploaded image").replace("\\", "/").split("/")[-1][:180]
     question = prompt.strip()[:4000] or "Describe this image and explain its important details."
-    user_content = f"[Image attached: {filename}] {question}"
-    user_message = ChatMessage(session_id=session.id, role="user", content=user_content)
+    user_content = question
+    user_message = ChatMessage(
+        session_id=session.id,
+        role="user",
+        content=user_content,
+        attachment_data=image_bytes,
+        attachment_content_type=image.content_type,
+        attachment_filename=filename,
+    )
     database.add(user_message)
     database.flush()
 
@@ -312,7 +345,7 @@ def send_image(
     assistant_message = ChatMessage(session_id=session.id, role="assistant", content=answer, citations="[]")
     database.add(assistant_message)
     if session.title == "New conversation":
-        session.title = (prompt.strip() or f"Image: {filename}")[:60]
+        session.title = (prompt.strip() or "Image question")[:60]
     session.updated_at = func.now()
     database.commit()
     database.refresh(user_message)
