@@ -211,7 +211,7 @@ def get_message_image(
     return Response(
         content=message.attachment_data,
         media_type=message.attachment_content_type,
-        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
     )
 
 
