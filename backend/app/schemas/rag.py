@@ -74,6 +74,7 @@ class ChatSessionResponse(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=12000)
+    attachment_filenames: list[str] = Field(default_factory=list, max_length=8)
 
 
 class MessageResponse(BaseModel):
@@ -84,6 +85,7 @@ class MessageResponse(BaseModel):
     content: str
     citations: list[Citation] = []
     attachment_url: str | None = None
+    attachment_filename: str | None = None
     created_at: datetime
 
 

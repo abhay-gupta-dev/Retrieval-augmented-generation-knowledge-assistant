@@ -48,6 +48,7 @@ export type ChatMessage = {
   content: string;
   citations: Citation[];
   attachment_url?: string | null;
+  attachment_filename?: string | null;
   created_at: string;
 };
 
@@ -415,11 +416,13 @@ export const retryMessage = (sessionId: string) =>
 export async function streamChatMessage(
   sessionId: string,
   content: string,
+  attachmentFilenames: string[],
   callbacks: {
     onUserMessage?: (msg: {
       id: string;
       role: string;
       content: string;
+      attachment_filename?: string | null;
       created_at: string;
     }) => void;
     onCitations?: (citations: Citation[]) => void;
@@ -434,7 +437,7 @@ export async function streamChatMessage(
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, attachment_filenames: attachmentFilenames }),
       signal,
   };
   let response = await fetch(url, init);

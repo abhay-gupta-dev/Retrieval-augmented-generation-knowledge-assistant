@@ -70,7 +70,6 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
 
   async function removeChat(chat: ChatSession) {
     setMenuChatId("");
-    if (!window.confirm(`Delete “${chat.title || "New chat"}” from chat history? Files in Documents will stay saved.`)) return;
     setDeletingChatId(chat.id);
     try {
       await deleteChat(chat.id);
@@ -126,7 +125,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
         <p className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">Your saved chats will appear here.</p>
       ) : (
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
-          {chats.map((chat) => (
+          {chats.map((chat, index) => (
             <div key={chat.id} ref={menuChatId === chat.id ? activeMenuRef : undefined} className="group relative flex min-w-0 items-center">
               <button
                 type="button"
@@ -167,7 +166,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={() => setMenuChatId((current) => current === chat.id ? "" : chat.id)}
                 className="absolute right-1 grid size-8 place-items-center rounded-lg text-slate-500 opacity-100 hover:bg-slate-200 hover:text-slate-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
               ><MoreHorizontal className="size-4" /></button>
-              {menuChatId === chat.id && <div className="absolute right-1 top-full z-40 mt-1 w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+              {menuChatId === chat.id && <div className={`absolute right-1 z-40 w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900 ${index === chats.length - 1 ? "bottom-full mb-1" : "top-full mt-1"}`}>
                 <button type="button" disabled={deletingChatId === chat.id} onClick={() => void removeChat(chat)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"><Trash2 className="size-3.5" />Delete chat</button>
                 <button type="button" onClick={() => setMenuChatId("")} className="mt-0.5 flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">Cancel</button>
               </div>}

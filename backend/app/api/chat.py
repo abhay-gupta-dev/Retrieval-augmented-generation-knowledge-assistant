@@ -55,6 +55,7 @@ def message_response(message: ChatMessage) -> MessageResponse:
             f"/api/v1/chat/{message.session_id}/messages/{message.id}/image"
             if message.attachment_content_type else None
         ),
+        attachment_filename=message.attachment_filename,
         created_at=message.created_at,
     )
 
@@ -249,7 +250,12 @@ def send_message(
     session = owned_session(database, user, session_id)
     kb_id = resolve_active_kb_id(session)
 
-    user_message = ChatMessage(session_id=session.id, role="user", content=payload.content.strip())
+    user_message = ChatMessage(
+        session_id=session.id,
+        role="user",
+        content=payload.content.strip(),
+        attachment_filename="\n".join(name[:180] for name in payload.attachment_filenames)[:255] or None,
+    )
     database.add(user_message)
     database.flush()
 
@@ -415,7 +421,12 @@ def stream_message(
     kb_id = resolve_active_kb_id(session)
 
     user_msg_content = payload.content.strip()
-    user_message = ChatMessage(session_id=session.id, role="user", content=user_msg_content)
+    user_message = ChatMessage(
+        session_id=session.id,
+        role="user",
+        content=user_msg_content,
+        attachment_filename="\n".join(name[:180] for name in payload.attachment_filenames)[:255] or None,
+    )
     database.add(user_message)
     database.flush()
 
@@ -438,7 +449,7 @@ def stream_message(
         stream_db = SessionLocal()
         try:
             # First send user_message info event
-            yield f"event: user_message\ndata: {json.dumps({'id': str(user_msg_id), 'role': 'user', 'content': user_msg_content, 'created_at': user_created_at})}\n\n"
+            yield f"event: user_message\ndata: {json.dumps({'id': str(user_msg_id), 'role': 'user', 'content': user_msg_content, 'attachment_filename': user_message.attachment_filename, 'created_at': user_created_at})}\n\n"
 
             accumulated_citations = []
             generator = stream_answer_question(

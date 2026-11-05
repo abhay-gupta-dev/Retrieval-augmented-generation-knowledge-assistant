@@ -361,7 +361,7 @@ export function ChatPage() {
       let streamedCitations: ChatMessage["citations"] = [];
       let userMessageAccepted = false;
       try {
-        await streamChatMessage(activeSessionId, prompt, {
+        await streamChatMessage(activeSessionId, prompt, documentAttachments.map((attachment) => attachment.file.name), {
           onUserMessage: (message) => {
             userMessageAccepted = true;
             setQuestion("");
@@ -428,7 +428,8 @@ export function ChatPage() {
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
       </div></div>}
       {messages.map((message) => <article key={message.id} className={`w-full break-words ${message.role === "user" ? "ml-auto max-w-[95%] rounded-2xl bg-[#163a32] p-4 text-white sm:max-w-[78%] sm:p-5" : "mr-auto max-w-full py-1 text-slate-900 dark:text-white"}`}>
-        {message.role === "user" && (message.attachment_url || imagePreviews[message.id]) && <img src={message.attachment_url || imagePreviews[message.id]} alt="Image attached to this message" className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
+        {message.role === "user" && (message.attachment_url || imagePreviews[message.id]) && <img src={message.attachment_url || imagePreviews[message.id]} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
+        {message.role === "user" && !message.attachment_url && message.attachment_filename && <div className="mb-3 flex max-w-full flex-wrap gap-2">{message.attachment_filename.split("\n").filter(Boolean).map((filename, index) => <div key={`${message.id}-${index}`} className="flex max-w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white"><FileText className="size-4 shrink-0" /><span className="max-w-64 truncate">{filename}</span></div>)}</div>}
         {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.attachment_url ? message.content && <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
         <div className="mt-3 flex items-center gap-2">
