@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LogIn, Menu, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { Files, House, LogIn, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Settings, UserRound, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
@@ -8,17 +8,17 @@ import { useAuth } from "../context/AuthContext";
 import { listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
 const links = [
-  ["/dashboard", "Overview", "⌂"],
-  ["/chat", "Chat", "✦"],
-  ["/documents", "Documents", "▤"],
-  ["/settings", "Settings", "⚙"],
-  ["/profile", "Profile settings", "◉"],
+  { to: "/dashboard", label: "Overview", Icon: House },
+  { to: "/chat", label: "Chat", Icon: MessageSquare },
+  { to: "/documents", label: "Documents", Icon: Files },
+  { to: "/settings", label: "Settings", Icon: Settings },
+  { to: "/profile", label: "Profile settings", Icon: UserRound },
 ];
 
 function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   return (
     <nav className="space-y-1" aria-label="Primary navigation">
-      {links.map(([to, label, icon]) => (
+      {links.map(({ to, label, Icon }) => (
         <NavLink
           key={to}
           to={to}
@@ -33,8 +33,8 @@ function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; 
             }`
           }
         >
-          <span className="grid size-5 place-items-center text-base" aria-hidden="true">{icon}</span>
-          {label}
+          <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true"><Icon className="size-5" /></span>
+          {!compact && label}
         </NavLink>
       ))}
     </nav>
