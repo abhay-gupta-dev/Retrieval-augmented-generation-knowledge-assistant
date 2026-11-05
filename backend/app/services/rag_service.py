@@ -10,7 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from groq import APIError, Groq
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
