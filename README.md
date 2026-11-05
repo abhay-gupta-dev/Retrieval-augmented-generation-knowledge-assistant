@@ -1,5 +1,7 @@
 # AI Knowledge Platform
 
+**Live project:** [Cognitive RAG](https://retrieval-augmented-generation-know.vercel.app)
+
 This repository is being migrated from a learning-oriented Streamlit RAG app to a full-stack AI Knowledge Platform. The original Streamlit files remain in place and are not used by the new application foundation.
 
 ## Current foundation

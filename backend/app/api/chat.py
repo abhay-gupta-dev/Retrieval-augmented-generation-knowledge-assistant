@@ -299,7 +299,7 @@ def send_image(
             model=settings.vision_model,
             messages=messages,
             temperature=0.3,
-            max_tokens=2048,
+            max_completion_tokens=2048,
         )
         answer = response.choices[0].message.content or "I could not read enough detail from that image. Try asking a more specific question."
     except APIError as error:
