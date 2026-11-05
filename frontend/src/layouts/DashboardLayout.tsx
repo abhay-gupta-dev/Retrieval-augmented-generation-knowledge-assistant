@@ -61,6 +61,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
   const selectedChatId = new URLSearchParams(location.search).get("chat");
   const longPressTimer = useRef<number | null>(null);
   const suppressClick = useRef(false);
+  const activeMenuRef = useRef<HTMLDivElement | null>(null);
 
   function clearLongPressTimer() {
     if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
@@ -82,6 +83,24 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
       setDeletingChatId("");
     }
   }
+
+  useEffect(() => {
+    if (!menuChatId) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!activeMenuRef.current?.contains(event.target as Node)) setMenuChatId("");
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuChatId("");
+    };
+    // Capture the pointer event so even clicks handled by nested sidebar
+    // controls dismiss the menu reliably.
+    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuChatId]);
 
   useEffect(() => {
     let active = true;
@@ -108,7 +127,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
       ) : (
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
           {chats.map((chat) => (
-            <div key={chat.id} className="group relative flex min-w-0 items-center">
+            <div key={chat.id} ref={menuChatId === chat.id ? activeMenuRef : undefined} className="group relative flex min-w-0 items-center">
               <button
                 type="button"
                 title={chat.title}
@@ -148,8 +167,9 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={() => setMenuChatId((current) => current === chat.id ? "" : chat.id)}
                 className="absolute right-1 grid size-8 place-items-center rounded-lg text-slate-500 opacity-100 hover:bg-slate-200 hover:text-slate-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
               ><MoreHorizontal className="size-4" /></button>
-              {menuChatId === chat.id && <div className="absolute right-1 top-1/2 z-30 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-                <button type="button" disabled={deletingChatId === chat.id} onClick={() => void removeChat(chat)} className="flex w-40 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"><Trash2 className="size-4" />Delete chat</button>
+              {menuChatId === chat.id && <div className="absolute right-1 top-full z-40 mt-1 w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                <button type="button" disabled={deletingChatId === chat.id} onClick={() => void removeChat(chat)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"><Trash2 className="size-3.5" />Delete chat</button>
+                <button type="button" onClick={() => setMenuChatId("")} className="mt-0.5 flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">Cancel</button>
               </div>}
             </div>
           ))}
