@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from threading import Thread
 
 from alembic import command
 from alembic.config import Config
@@ -18,6 +19,7 @@ from app.api.documents import router as documents_router
 from app.api.knowledge_base import router as knowledge_base_router
 from app.api.profile import router as profile_router
 from app.core.config import get_settings
+from app.services.document_service import recover_pending_documents
 
 settings = get_settings()
 
@@ -30,6 +32,7 @@ async def lifespan(_: FastAPI):
     migration_config = Config(str(backend_dir / "alembic.ini"))
     migration_config.set_main_option("script_location", str(backend_dir / "alembic"))
     command.upgrade(migration_config, "head")
+    Thread(target=recover_pending_documents, name="document-index-recovery", daemon=True).start()
     yield
 
 app = FastAPI(

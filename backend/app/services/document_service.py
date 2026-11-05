@@ -9,7 +9,7 @@ from pathlib import Path
 
 from docx import Document as WordDocument
 from pypdf import PdfReader
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.core.config import get_settings
 from app.database.connection import SessionLocal
@@ -216,3 +216,17 @@ def index_document(document_id: uuid.UUID) -> None:
             database.commit()
     finally:
         database.close()
+
+
+def recover_pending_documents() -> None:
+    """Resume indexing tasks left in queued/processing after a service restart."""
+    database = SessionLocal()
+    try:
+        pending_ids = list(database.scalars(
+            select(Document.id).where(Document.status.in_(["queued", "processing"]))
+        ))
+    finally:
+        database.close()
+
+    for document_id in pending_ids:
+        index_document(document_id)
