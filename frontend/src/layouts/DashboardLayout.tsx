@@ -4,7 +4,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
 import { ProfileMenu } from "../components/ProfileMenu";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 import { listChats, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
@@ -183,7 +182,6 @@ export function DashboardLayout() {
               className="hidden rounded-lg p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 md:inline-flex"
             >{sidebarVisible ? <PanelLeftClose className="size-5" /> : <PanelLeftOpen className="size-5" />}</button>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              <ThemeToggle />
               <div className="md:hidden"><ProfileMenu align="right" /></div>
             </div>
           </div>

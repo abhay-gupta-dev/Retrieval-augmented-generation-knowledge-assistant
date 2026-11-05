@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { BrainCircuit, FileText, Network, Sparkles } from "lucide-react";
 
 import { Logo } from "../components/Logo";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 
 export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?: boolean }) {
@@ -49,7 +48,7 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
   }
 
   return <main className="h-[100dvh] min-h-[100svh] overflow-y-auto bg-[#f4f7f3] px-4 py-5 dark:bg-[#101a18] sm:px-6 sm:py-6">
-    <div className="mx-auto flex max-w-6xl justify-between"><Logo /><ThemeToggle /></div>
+    <div className="mx-auto flex max-w-6xl justify-between"><Logo /></div>
     <div className="mx-auto grid min-h-[calc(100svh-90px)] max-w-6xl items-center gap-5 py-5 sm:gap-8 sm:py-8 lg:grid-cols-[1.1fr_.9fr] lg:gap-24">
       <section className="relative hidden aspect-[4/5] w-full max-w-[470px] place-self-center overflow-hidden rounded-3xl border border-[#d7e6dc] bg-[#e5f0e9] shadow-xl shadow-[#163a32]/10 dark:border-[#28413a] dark:bg-[#14251f] sm:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_47%,rgba(255,255,255,.96)_0%,rgba(250,253,249,.9)_42%,rgba(226,240,231,.75)_100%)] dark:bg-[radial-gradient(ellipse_at_50%_47%,rgba(34,63,53,.95)_0%,rgba(25,47,39,.94)_45%,rgba(16,32,27,.98)_100%)]" />

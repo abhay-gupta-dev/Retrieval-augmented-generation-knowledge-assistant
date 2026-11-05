@@ -13,6 +13,8 @@ type PendingAttachment = {
 };
 import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 function useKnowledgeBases() {
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
@@ -68,15 +70,13 @@ export function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (newChatRequested) {
+    if (newChatRequested || !requestedChatId) {
       startNewChat();
       return;
     }
     void listChats()
       .then(async (chats) => {
-        const targetChat = requestedChatId
-          ? chats.find((chat) => chat.id === requestedChatId)
-          : chats[0];
+        const targetChat = chats.find((chat) => chat.id === requestedChatId);
         if (requestedChatId && !targetChat) {
           setError("That saved chat could not be found.");
           setSessionId("");
@@ -391,7 +391,25 @@ export function ChatPage() {
   </div>;
 }
 
-export const SettingsPage = () => {
+export function SettingsPage() {
+  const { theme } = useTheme();
+  return <div className="mx-auto w-full max-w-4xl space-y-6">
+    <header>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">Preferences</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Settings</h1>
+      <p className="mt-2 text-slate-600 dark:text-slate-300">Adjust how Cognitive RAG looks on this device.</p>
+    </header>
+    <section className="surface flex flex-col gap-5 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Appearance</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Current mode: <span className="font-semibold capitalize">{theme}</span></p>
+      </div>
+      <ThemeToggle />
+    </section>
+  </div>;
+}
+
+export const ProfilePage = () => {
   const { user, isGuest } = useAuth();
   const initials = (user?.name || "U").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const providerLabel = isGuest ? "Guest workspace" : user?.provider === "google" ? "Google account" : "Email account";
