@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Copy, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Plus, Trash2, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
@@ -315,13 +315,13 @@ export function ChatPage() {
   }
 
   return <div className="mx-auto flex h-full min-h-0 w-full max-w-none flex-col gap-2 max-[380px]:pt-4">
-    <section className="surface min-h-0 flex-1 space-y-5 overflow-y-auto rounded-2xl p-3 sm:p-6" aria-live="polite">
+    <section className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-6" aria-live="polite">
       {messages.length === 0 && <div className="flex min-h-64 items-center justify-center text-center"><div>
         <p className="text-4xl" aria-hidden="true">✦</p>
         <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{user?.provider === "guest" ? "Welcome to Cognitive RAG!" : `Welcome${user?.name ? `, ${user.name.trim().split(/\s+/)[0]}` : ""}!`}</h2>
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
       </div></div>}
-      {messages.map((message) => <article key={message.id} className={`w-full break-words rounded-2xl p-4 sm:p-5 ${message.role === "user" ? "ml-auto max-w-[95%] bg-[#163a32] text-white sm:max-w-[78%]" : "mr-auto max-w-full bg-[#eef6f1] text-slate-900 dark:bg-white/5 dark:text-white"}`}>
+      {messages.map((message) => <article key={message.id} className={`w-full break-words ${message.role === "user" ? "ml-auto max-w-[95%] rounded-2xl bg-[#163a32] p-4 text-white sm:max-w-[78%] sm:p-5" : "mr-auto max-w-full py-1 text-slate-900 dark:text-white"}`}>
         {message.role === "user" && imagePreviews[message.id] && <img src={imagePreviews[message.id]} alt="Image attached to this message" className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
         {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
@@ -345,7 +345,7 @@ export function ChatPage() {
     </section>}
 
     {notice && <p role="status" className="rounded-xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950/40 dark:text-teal-100">{notice}</p>}
-    {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">{error}</p>}
+    {error && <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"><p className="min-w-0 flex-1">{error}</p><button type="button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setError("")} className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60"><X className="size-4" /></button></div>}
 
     <form onSubmit={(event) => void ask(event)} className="surface flex shrink-0 items-end gap-1.5 rounded-2xl p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] sm:gap-2 sm:p-2">
       <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,.pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (file.type.startsWith("image/")) void askAboutImage(file); else void uploadFromChat(file); } }} />
