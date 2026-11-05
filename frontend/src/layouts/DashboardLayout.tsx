@@ -106,6 +106,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DashboardLayout() {
   const { isGuest } = useAuth();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(
     () => window.localStorage.getItem("knowledge-platform:sidebar-hidden") !== "true"
@@ -187,7 +188,7 @@ export function DashboardLayout() {
             </div>
           </div>
         </header>
-        <section className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 overflow-y-auto px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6">
+        <section className={`mx-auto flex min-h-0 w-full max-w-7xl flex-1 overflow-y-auto px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6 ${location.pathname === "/chat" ? "mobile-chat-outlet" : ""}`}>
           <Outlet />
         </section>
       </section>
