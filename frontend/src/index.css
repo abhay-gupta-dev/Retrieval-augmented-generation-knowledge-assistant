@@ -105,7 +105,7 @@ html:not(.dark) .text-slate-500:not([class*="dark:text-"]) {
   }
 
   .app-mobile-header {
-    padding-top: max(56px, calc(env(safe-area-inset-top) + 48px)) !important;
+    padding-top: max(24px, env(safe-area-inset-top)) !important;
   }
 
   .app-mobile-sidebar {
