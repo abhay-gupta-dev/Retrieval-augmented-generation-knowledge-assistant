@@ -141,19 +141,33 @@ def delete_document(
     """Delete a document and its storage file and vector chunks."""
     owned_knowledge_base(database, user, knowledge_base_id)
     document = database.scalar(
-        select(Document).where(Document.id == document_id, Document.knowledge_base_id == knowledge_base_id)
+        select(Document).options(undefer(Document.file_data)).where(
+            Document.id == document_id,
+            Document.knowledge_base_id == knowledge_base_id,
+        )
     )
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     path = storage_path(document.storage_key)
-    # Detach any saved chat message which refers to this image. Removing the
-    # document then removes the only persisted copy of its uploaded bytes.
-    database.execute(
-        update(ChatMessage)
-        .where(ChatMessage.attachment_document_id == document.id)
-        .values(attachment_document_id=None, attachment_content_type=None, attachment_filename=None)
-    )
+    document_bytes = document.file_data
+    if document_bytes is None and path.is_file():
+        document_bytes = path.read_bytes()
+    # Keep sent chat images available in their original messages after their
+    # Documents copy is deleted. Move their bytes back onto the chat message
+    # before removing the independent Documents record.
+    if document_bytes is not None:
+        database.execute(
+            update(ChatMessage)
+            .where(ChatMessage.attachment_document_id == document.id)
+            .values(attachment_data=document_bytes, attachment_document_id=None)
+        )
+    else:
+        database.execute(
+            update(ChatMessage)
+            .where(ChatMessage.attachment_document_id == document.id)
+            .values(attachment_document_id=None, attachment_content_type=None, attachment_filename=None)
+        )
     database.delete(document)
     database.commit()
     path.unlink(missing_ok=True)

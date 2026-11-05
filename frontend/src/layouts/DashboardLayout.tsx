@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
-import { Files, House, LogIn, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Settings, UserRound, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Files, House, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Trash2, UserRound, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
 import { ProfileMenu } from "../components/ProfileMenu";
 import { useAuth } from "../context/AuthContext";
-import { listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
+import { deleteChat, listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
 const links = [
   { to: "/dashboard", label: "Overview", Icon: House },
@@ -54,9 +54,34 @@ function NewChatButton() {
 
 function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
   const [chats, setChats] = useState<ChatSession[]>([]);
+  const [menuChatId, setMenuChatId] = useState("");
+  const [deletingChatId, setDeletingChatId] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
   const selectedChatId = new URLSearchParams(location.search).get("chat");
+  const longPressTimer = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+
+  function clearLongPressTimer() {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+
+  async function removeChat(chat: ChatSession) {
+    setMenuChatId("");
+    if (!window.confirm(`Delete “${chat.title || "New chat"}” from chat history? Files in Documents will stay saved.`)) return;
+    setDeletingChatId(chat.id);
+    try {
+      await deleteChat(chat.id);
+      setChats((current) => current.filter((item) => item.id !== chat.id));
+      if (selectedChatId === chat.id) navigate("/chat", { replace: true });
+      onNavigate?.();
+    } catch (cause) {
+      window.alert(cause instanceof Error ? cause.message : "Could not delete this chat.");
+    } finally {
+      setDeletingChatId("");
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -83,23 +108,50 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
       ) : (
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
           {chats.map((chat) => (
-            <button
-              key={chat.id}
-              type="button"
-              title={chat.title}
-              onClick={() => {
-                try { window.sessionStorage.setItem(savedChatOpenIntentKey, chat.id); } catch { /* Continue with in-app navigation. */ }
-                navigate(`/chat?chat=${encodeURIComponent(chat.id)}`);
-                onNavigate?.();
-              }}
-              className={`w-full truncate rounded-lg px-3 py-2 text-left text-sm transition ${
-                selectedChatId === chat.id
-                  ? "bg-teal-100 font-medium text-teal-950 dark:bg-white/10 dark:text-teal-100"
-                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
-              }`}
-            >
-              {chat.title || "New chat"}
-            </button>
+            <div key={chat.id} className="group relative flex min-w-0 items-center">
+              <button
+                type="button"
+                title={chat.title}
+                onTouchStart={() => {
+                  suppressClick.current = false;
+                  clearLongPressTimer();
+                  longPressTimer.current = window.setTimeout(() => {
+                    suppressClick.current = true;
+                    setMenuChatId(chat.id);
+                  }, 550);
+                }}
+                onTouchEnd={clearLongPressTimer}
+                onTouchMove={clearLongPressTimer}
+                onTouchCancel={clearLongPressTimer}
+                onContextMenu={(event) => { event.preventDefault(); setMenuChatId(chat.id); }}
+                onDoubleClick={() => setMenuChatId(chat.id)}
+                onClick={() => {
+                  if (suppressClick.current) { suppressClick.current = false; return; }
+                  setMenuChatId("");
+                  try { window.sessionStorage.setItem(savedChatOpenIntentKey, chat.id); } catch { /* Continue with in-app navigation. */ }
+                  navigate(`/chat?chat=${encodeURIComponent(chat.id)}`);
+                  onNavigate?.();
+                }}
+                className={`w-full min-w-0 truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition ${
+                  selectedChatId === chat.id
+                    ? "bg-teal-100 font-medium text-teal-950 dark:bg-white/10 dark:text-teal-100"
+                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
+                }`}
+              >
+                {chat.title || "New chat"}
+              </button>
+              <button
+                type="button"
+                aria-label={`More options for ${chat.title || "New chat"}`}
+                title="Chat options"
+                aria-expanded={menuChatId === chat.id}
+                onClick={() => setMenuChatId((current) => current === chat.id ? "" : chat.id)}
+                className="absolute right-1 grid size-8 place-items-center rounded-lg text-slate-500 opacity-100 hover:bg-slate-200 hover:text-slate-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+              ><MoreHorizontal className="size-4" /></button>
+              {menuChatId === chat.id && <div className="absolute right-1 top-1/2 z-30 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                <button type="button" disabled={deletingChatId === chat.id} onClick={() => void removeChat(chat)} className="flex w-40 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"><Trash2 className="size-4" />Delete chat</button>
+              </div>}
+            </div>
           ))}
         </div>
       )}
