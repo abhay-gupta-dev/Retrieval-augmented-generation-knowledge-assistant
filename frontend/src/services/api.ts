@@ -81,6 +81,7 @@ export type DashboardStats = {
 };
 
 const chatHistoryChangedEvent = "knowledge-platform:chat-history-changed";
+export const savedChatOpenIntentKey = "knowledge-platform:open-saved-chat-once";
 
 export function notifyChatHistoryChanged(): void {
   window.dispatchEvent(new Event(chatHistoryChangedEvent));

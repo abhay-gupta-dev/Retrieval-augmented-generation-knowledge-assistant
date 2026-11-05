@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, Copy, FileText, Image as ImageIcon, Plus, Trash2, X } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
 import { MarkdownMessage } from "../components/MarkdownMessage";
@@ -11,7 +11,7 @@ type PendingAttachment = {
   file: File;
   previewUrl?: string;
 };
-import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
+import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -44,6 +44,8 @@ export function DocumentsPage() {
 export function ChatPage() {
   const { user } = useAuth();
   const { reload } = useKnowledgeBases();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedChatId = searchParams.get("chat");
   const newChatRequested = searchParams.get("new") === "1";
@@ -64,16 +66,31 @@ export function ChatPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const imagePreviewUrls = useRef<string[]>([]);
+  const openedSavedChatRef = useRef("");
 
   useEffect(() => () => {
     imagePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
   useEffect(() => {
-    if (newChatRequested || !requestedChatId) {
+    let hasSavedChatIntent = false;
+    if (requestedChatId) {
+      try {
+        hasSavedChatIntent = window.sessionStorage.getItem(savedChatOpenIntentKey) === requestedChatId;
+        if (hasSavedChatIntent) window.sessionStorage.removeItem(savedChatOpenIntentKey);
+      } catch {
+        hasSavedChatIntent = false;
+      }
+      hasSavedChatIntent ||= openedSavedChatRef.current === requestedChatId;
+    }
+
+    if (newChatRequested || !requestedChatId || !hasSavedChatIntent) {
+      openedSavedChatRef.current = "";
       startNewChat();
+      if (requestedChatId || newChatRequested) navigate("/chat", { replace: true });
       return;
     }
+    openedSavedChatRef.current = requestedChatId;
     void listChats()
       .then(async (chats) => {
         const targetChat = chats.find((chat) => chat.id === requestedChatId);
@@ -95,7 +112,7 @@ export function ChatPage() {
         setMessages(await listMessages(targetChat.id));
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load your latest conversation."));
-  }, [newChatRequested, requestedChatId]);
+  }, [location.key, newChatRequested, requestedChatId, navigate]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

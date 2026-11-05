@@ -5,13 +5,14 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { ProfileMenu } from "../components/ProfileMenu";
 import { useAuth } from "../context/AuthContext";
-import { listChats, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
+import { listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
 const links = [
   ["/dashboard", "Overview", "⌂"],
   ["/chat", "Chat", "✦"],
   ["/documents", "Documents", "▤"],
   ["/settings", "Settings", "⚙"],
+  ["/profile", "Profile settings", "◉"],
 ];
 
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
@@ -85,6 +86,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
               type="button"
               title={chat.title}
               onClick={() => {
+                try { window.sessionStorage.setItem(savedChatOpenIntentKey, chat.id); } catch { /* Continue with in-app navigation. */ }
                 navigate(`/chat?chat=${encodeURIComponent(chat.id)}`);
                 onNavigate?.();
               }}
