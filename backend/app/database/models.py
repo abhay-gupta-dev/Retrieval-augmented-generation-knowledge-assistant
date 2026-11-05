@@ -71,6 +71,7 @@ class Document(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    file_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     content_sha256: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="queued", index=True)
@@ -122,6 +123,9 @@ class ChatMessage(Base):
     attachment_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
     attachment_content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attachment_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped[ChatSession] = relationship(back_populates="messages")

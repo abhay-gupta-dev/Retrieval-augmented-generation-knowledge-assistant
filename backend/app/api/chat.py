@@ -14,7 +14,7 @@ from app.api.knowledge_base import owned_knowledge_base
 from app.core.config import get_settings
 from app.core.security import get_current_user
 from app.database.connection import SessionLocal, get_db
-from app.database.models import ChatMessage, ChatSession, KnowledgeBase, User
+from app.database.models import ChatMessage, ChatSession, Document, KnowledgeBase, User
 from app.schemas.rag import (
     ChatReply,
     ChatSessionCreate,
@@ -29,6 +29,7 @@ from app.services.rag_service import (
     encode_citations,
     stream_answer_question,
 )
+from app.services.document_service import storage_path
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -206,10 +207,25 @@ def get_message_image(
         .options(undefer(ChatMessage.attachment_data))
         .where(ChatMessage.id == message_id, ChatMessage.session_id == session.id)
     )
-    if not message or not message.attachment_data or not message.attachment_content_type:
+    if not message or not message.attachment_content_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
+    image_bytes = message.attachment_data
+    if message.attachment_document_id:
+        document = database.scalar(
+            select(Document)
+            .options(undefer(Document.file_data))
+            .join(KnowledgeBase, KnowledgeBase.id == Document.knowledge_base_id)
+            .where(Document.id == message.attachment_document_id, KnowledgeBase.owner_id == user.id)
+        )
+        if document:
+            image_bytes = document.file_data
+            if image_bytes is None:
+                path = storage_path(document.storage_key)
+                image_bytes = path.read_bytes() if path.is_file() else None
+    if not image_bytes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
     return Response(
-        content=message.attachment_data,
+        content=image_bytes,
         media_type=message.attachment_content_type,
         headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
     )
@@ -276,8 +292,9 @@ def send_message(
 @router.post("/{session_id}/images", response_model=ChatReply)
 def send_image(
     session_id: UUID,
-    image: UploadFile = File(...),
+    image: UploadFile | None = File(default=None),
     prompt: str = Form(default=""),
+    document_id: UUID | None = Form(default=None),
     user: User = Depends(get_current_user),
     database: Session = Depends(get_db),
 ) -> ChatReply:
@@ -286,26 +303,49 @@ def send_image(
     if not settings.groq_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image understanding is not configured on the server.")
 
+    session = owned_session(database, user, session_id)
     allowed_types = {"image/jpeg", "image/png", "image/webp"}
-    if image.content_type not in allowed_types:
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Choose a JPEG, PNG, or WebP image.")
+    filename = "uploaded image"
+    document: Document | None = None
+    if document_id:
+        if not session.knowledge_base_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attach the image to this conversation first.")
+        owned_knowledge_base(database, user, session.knowledge_base_id)
+        document = database.scalar(
+            select(Document).options(undefer(Document.file_data)).where(
+                Document.id == document_id,
+                Document.knowledge_base_id == session.knowledge_base_id,
+            )
+        )
+        if not document or document.content_type not in allowed_types:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved image not found in this workspace.")
+        filename = document.original_filename
+        image_bytes = document.file_data
+        if image_bytes is None:
+            path = storage_path(document.storage_key)
+            image_bytes = path.read_bytes() if path.is_file() else None
+        image_content_type = document.content_type
+    else:
+        if not image or image.content_type not in allowed_types:
+            raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Choose a JPEG, PNG, or WebP image.")
+        image_bytes = image.file.read(settings.max_image_bytes + 1)
+        image_content_type = image.content_type
+        filename = (image.filename or "uploaded image").replace("\\", "/").split("/")[-1][:180]
 
-    image_bytes = image.file.read(settings.max_image_bytes + 1)
     if not image_bytes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The selected image is empty.")
     if len(image_bytes) > settings.max_image_bytes:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Images must be 10 MB or smaller.")
 
-    session = owned_session(database, user, session_id)
-    filename = (image.filename or "uploaded image").replace("\\", "/").split("/")[-1][:180]
     question = prompt.strip()[:4000] or "Describe this image and explain its important details."
     user_content = question
     user_message = ChatMessage(
         session_id=session.id,
         role="user",
         content=user_content,
-        attachment_data=image_bytes,
-        attachment_content_type=image.content_type,
+        attachment_data=image_bytes if document is None else None,
+        attachment_document_id=document.id if document else None,
+        attachment_content_type=image_content_type,
         attachment_filename=filename,
     )
     database.add(user_message)
@@ -323,7 +363,7 @@ def send_image(
         "role": "user",
         "content": [
             {"type": "text", "text": question},
-            {"type": "image_url", "image_url": {"url": f"data:{image.content_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"}},
+            {"type": "image_url", "image_url": {"url": f"data:{image_content_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"}},
         ],
     })
 

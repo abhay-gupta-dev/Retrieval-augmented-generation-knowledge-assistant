@@ -25,7 +25,7 @@ export type IndexedDocument = {
   original_filename: string;
   content_type: string | null;
   size_bytes: number;
-  status: "queued" | "processing" | "indexed" | "ready" | "failed";
+  status: "queued" | "processing" | "indexed" | "ready" | "stored" | "failed";
   error_message: string | null;
   chunk_count: number;
   created_at: string;
@@ -390,10 +390,10 @@ export const sendMessage = (
     body: JSON.stringify({ content }),
   });
 
-export const sendImage = (sessionId: string, prompt: string, image: File) => {
+export const sendImage = (sessionId: string, prompt: string, documentId: string) => {
   const form = new FormData();
-  form.append("image", image);
   form.append("prompt", prompt);
+  form.append("document_id", documentId);
   return request<{
     user_message: ChatMessage;
     assistant_message: ChatMessage;

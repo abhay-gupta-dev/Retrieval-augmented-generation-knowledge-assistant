@@ -16,7 +16,13 @@ from app.database.connection import SessionLocal
 from app.database.models import Document, DocumentChunk
 from app.services.rag_service import embed_texts
 
-ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx"}
+ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".jpg", ".jpeg", ".png", ".webp"}
+IMAGE_SIGNATURES = {
+    ".jpg": lambda content: content.startswith(b"\xff\xd8\xff"),
+    ".jpeg": lambda content: content.startswith(b"\xff\xd8\xff"),
+    ".png": lambda content: content.startswith(b"\x89PNG\r\n\x1a\n"),
+    ".webp": lambda content: len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP",
+}
 
 
 def storage_path(storage_key: str) -> Path:
@@ -34,16 +40,21 @@ def validate_upload(filename: str, content: bytes) -> None:
         raise ValueError("The uploaded file is empty.")
     if len(content) > get_settings().max_upload_bytes:
         raise ValueError(f"The uploaded file exceeds the configured limit of {get_settings().max_upload_bytes // (1024 * 1024)}MB.")
+    if extension in IMAGE_SIGNATURES and len(content) > get_settings().max_image_bytes:
+        raise ValueError(f"Images must be {get_settings().max_image_bytes // (1024 * 1024)}MB or smaller.")
     if extension == ".pdf" and not content.startswith(b"%PDF-"):
         raise ValueError("The uploaded file is not a valid PDF.")
     if extension == ".docx" and not content.startswith(b"PK"):
         raise ValueError("The uploaded file is not a valid DOCX file.")
+    if extension in IMAGE_SIGNATURES and not IMAGE_SIGNATURES[extension](content):
+        raise ValueError("The uploaded image does not match its file type.")
 
 
 def persist_upload(filename: str, content: bytes) -> tuple[str, str]:
     validate_upload(filename, content)
     key = f"{uuid.uuid4()}{Path(filename).suffix.lower()}"
-    storage_path(key).write_bytes(content)
+    # File bytes are stored in the database so they survive service restarts
+    # and deployments on hosts with ephemeral local filesystems.
     return key, hashlib.sha256(content).hexdigest()
 
 
@@ -174,7 +185,12 @@ def index_document(document_id: uuid.UUID) -> None:
         document.status = "processing"
         database.commit()
 
-        file_content = storage_path(document.storage_key).read_bytes()
+        file_content = document.file_data
+        if file_content is None:
+            path = storage_path(document.storage_key)
+            if not path.is_file():
+                raise FileNotFoundError("The stored file is missing. Please upload it again.")
+            file_content = path.read_bytes()
         text = extract_text(document.original_filename, file_content)
         chunks = chunk_text(text)
         if not chunks:

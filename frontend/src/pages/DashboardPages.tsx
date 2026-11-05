@@ -33,12 +33,103 @@ export function DashboardPage() {
 
 export function DocumentsPage() {
   const { bases, reload } = useKnowledgeBases();
-  const [selected, setSelected] = useState(""); const [name, setName] = useState(""); const [documents, setDocuments] = useState<IndexedDocument[]>([]); const [error, setError] = useState(""); const [loading, setLoading] = useState(false);
-  useEffect(() => { if (!selected && bases[0]) setSelected(bases[0].id); }, [bases, selected]);
-  useEffect(() => { if (selected) { setLoading(true); void listDocuments(selected).then(setDocuments).catch((e) => setError(e instanceof Error ? e.message : "Could not load documents.")).finally(() => setLoading(false)); } }, [selected]);
-  async function addBase(event: FormEvent) { event.preventDefault(); setError(""); try { const base = await createKnowledgeBase(name); setName(""); await reload(); setSelected(base.id); } catch (e) { setError(e instanceof Error ? e.message : "Could not create knowledge base."); } }
-  async function addFile(file: File) { if (!selected) return; setError(""); try { await uploadDocument(selected, file); setDocuments(await listDocuments(selected)); } catch (e) { setError(e instanceof Error ? e.message : "Upload failed."); } }
-  return <div className="space-y-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">Knowledge</p><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Documents</h1><p className="mt-2 max-w-xl text-slate-600 dark:text-slate-300">Upload source material, let it index in the background, then use it in grounded conversations.</p></div>{bases.length > 0 && <select aria-label="Select knowledge base" value={selected} onChange={(e) => setSelected(e.target.value)} className="rounded-xl border border-[#cbdcd4] bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm dark:border-[#28413a] dark:bg-[#14231f] dark:text-white">{bases.map((base) => <option key={base.id} value={base.id}>{base.name}</option>)}</select>}</div><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><section className="surface rounded-2xl p-6"><p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Create a collection</p><h2 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">Start with a knowledge base</h2><form onSubmit={addBase} className="mt-5 space-y-3"><input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Product handbook" className="w-full rounded-xl border border-[#cbdcd4] bg-white p-3 text-slate-900 outline-none focus:border-teal-500 dark:border-[#28413a] dark:bg-[#14231f] dark:text-white" /><button type="submit" className="w-full rounded-xl bg-[#163a32] px-4 py-3 font-semibold text-white transition hover:bg-[#1d4b40]">Create knowledge base</button></form><div className="mt-6 rounded-xl bg-[#eef6f1] p-4 text-sm leading-6 text-slate-600 dark:bg-white/5 dark:text-slate-300">Supported files: TXT, Markdown, PDF, and DOCX. Processing happens privately in the background.</div></section>{bases.length > 0 ? <section className="surface rounded-2xl p-6"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-teal-700 dark:text-teal-300">{documents.length} source{documents.length === 1 ? "" : "s"}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{bases.find((base) => base.id === selected)?.name}</h2></div><button type="button" onClick={() => selected && void listDocuments(selected).then(setDocuments)} className="rounded-lg px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-white/5">Refresh</button></div><label className="mt-5 block cursor-pointer rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50/50 p-7 text-center transition hover:bg-teal-50 dark:border-teal-800 dark:bg-teal-950/20 dark:hover:bg-teal-950/40"><input type="file" accept=".txt,.md,.pdf,.docx" className="hidden" onChange={(e) => e.target.files?.[0] && void addFile(e.target.files[0])} /><span className="text-2xl" aria-hidden="true">↑</span><span className="mt-2 block font-semibold text-teal-900 dark:text-teal-200">Add a document</span><span className="mt-1 block text-sm text-teal-700/70 dark:text-teal-300/70">Choose a file to upload and index</span></label>{loading ? <div className="mt-6 space-y-3">{[1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />)}</div> : documents.length ? <div className="mt-6 space-y-3">{documents.map((document) => <div key={document.id} className="flex items-center justify-between gap-4 rounded-xl border border-[#dce7e0] p-4 dark:border-[#28413a]"><div className="min-w-0"><p className="truncate font-semibold text-slate-800 dark:text-slate-100">{document.original_filename}</p><p className="mt-1 text-xs text-slate-500">{document.size_bytes.toLocaleString()} bytes{document.status === "indexed" ? ` · ${document.chunk_count} chunks` : ""}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.status === "indexed" ? "bg-emerald-100 text-emerald-800" : document.status === "failed" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{document.status}</span>{document.error_message && <p className="text-sm text-rose-600">{document.error_message}</p>}</div>)}</div> : <p className="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">No documents in this collection yet.</p>}</section> : <section className="surface flex min-h-64 items-center justify-center rounded-2xl p-8 text-center"><div><p className="text-3xl" aria-hidden="true">▤</p><h2 className="mt-3 text-xl font-bold text-slate-950 dark:text-white">Your sources will appear here</h2><p className="mt-2 text-sm text-slate-500">Create a knowledge base to unlock document uploads.</p></div></section>}</div>{error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}</div>;
+  const [selected, setSelected] = useState("all");
+  const [name, setName] = useState("");
+  const [documents, setDocuments] = useState<IndexedDocument[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const load = selected === "all"
+      ? Promise.all(bases.map((base) => listDocuments(base.id))).then((groups) => groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      : listDocuments(selected);
+    void load
+      .then((items) => { if (active) setDocuments(items); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load documents."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [bases, selected]);
+
+  async function addBase(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    try {
+      const base = await createKnowledgeBase(name);
+      setName("");
+      await reload();
+      setSelected(base.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create knowledge base.");
+    }
+  }
+
+  async function addFile(file: File) {
+    setError("");
+    try {
+      let targetBaseId = selected;
+      if (selected === "all") {
+        const defaultBase = bases.find((base) => base.name === "My documents");
+        const targetBase = defaultBase ?? await createKnowledgeBase("My documents", "Files uploaded from the Documents page");
+        targetBaseId = targetBase.id;
+        if (!defaultBase) await reload();
+      }
+      await uploadDocument(targetBaseId, file);
+      if (selected === "all") {
+        const groups = await Promise.all([...bases, ...(bases.some((base) => base.id === targetBaseId) ? [] : [{ id: targetBaseId } as KnowledgeBase])].map((base) => listDocuments(base.id)));
+        setDocuments(groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      } else {
+        setDocuments(await listDocuments(targetBaseId));
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Upload failed.");
+    }
+  }
+
+  async function removeFile(file: IndexedDocument) {
+    if (!window.confirm(`Permanently delete “${file.original_filename}” from your Documents? This also removes it from chats that use this saved image.`)) return;
+    setDeletingId(file.id);
+    setError("");
+    try {
+      await deleteDocument(file.knowledge_base_id, file.id);
+      setDocuments((current) => current.filter((item) => item.id !== file.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not delete this file.");
+    } finally {
+      setDeletingId("");
+    }
+  }
+
+  return <div className="space-y-8">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">Knowledge</p><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Documents</h1><p className="mt-2 max-w-xl text-slate-600 dark:text-slate-300">Your uploaded files and photos are saved here in your private workspace.</p></div>
+      {bases.length > 0 && <select aria-label="Select collection" value={selected} onChange={(event) => setSelected(event.target.value)} className="rounded-xl border border-[#cbdcd4] bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm dark:border-[#28413a] dark:bg-[#14231f] dark:text-white"><option value="all">All documents</option>{bases.map((base) => <option key={base.id} value={base.id}>{base.name}</option>)}</select>}
+    </div>
+    <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
+      <section className="surface rounded-2xl p-6">
+        <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Create a collection</p><h2 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">Organize your files</h2>
+        <form onSubmit={(event) => void addBase(event)} className="mt-5 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="e.g. Personal files" className="w-full rounded-xl border border-[#cbdcd4] bg-white p-3 text-slate-900 outline-none focus:border-teal-500 dark:border-[#28413a] dark:bg-[#14231f] dark:text-white" /><button type="submit" className="w-full rounded-xl bg-[#163a32] px-4 py-3 font-semibold text-white transition hover:bg-[#1d4b40]">Create collection</button></form>
+        <div className="mt-6 rounded-xl bg-[#eef6f1] p-4 text-sm leading-6 text-slate-600 dark:bg-white/5 dark:text-slate-300">Supported files: images, TXT, Markdown, PDF, and DOCX. Files uploaded in chat are saved here too.</div>
+      </section>
+      {selected ? <section className="surface rounded-2xl p-6">
+        <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-teal-700 dark:text-teal-300">{documents.length} file{documents.length === 1 ? "" : "s"}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{selected === "all" ? "All documents" : bases.find((base) => base.id === selected)?.name}</h2></div><button type="button" onClick={() => { setLoading(true); const load = selected === "all" ? Promise.all(bases.map((base) => listDocuments(base.id))).then((groups) => groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at))) : listDocuments(selected); void load.then(setDocuments).catch((cause) => setError(cause instanceof Error ? cause.message : "Could not refresh files.")).finally(() => setLoading(false)); }} className="rounded-lg px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-white/5">Refresh</button></div>
+        <label className="mt-5 block cursor-pointer rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50/50 p-7 text-center transition hover:bg-teal-50 dark:border-teal-800 dark:bg-teal-950/20 dark:hover:bg-teal-950/40"><input type="file" accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addFile(file); event.currentTarget.value = ""; }} /><span className="text-2xl" aria-hidden="true">↑</span><span className="mt-2 block font-semibold text-teal-900 dark:text-teal-200">Add a file or photo</span><span className="mt-1 block text-sm text-teal-700/70 dark:text-teal-300/70">Select a file to save it in this collection</span></label>
+        {loading ? <div className="mt-6 space-y-3">{[1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />)}</div> : documents.length ? <div className="mt-6 space-y-3">{documents.map((document) => {
+          const fileUrl = `/api/v1/knowledge-bases/${encodeURIComponent(document.knowledge_base_id)}/documents/${encodeURIComponent(document.id)}/file`;
+          const isImage = document.content_type?.startsWith("image/");
+          return <div key={document.id} className="flex items-center gap-3 rounded-xl border border-[#dce7e0] p-3 dark:border-[#28413a]">
+            {isImage ? <a href={fileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${document.original_filename}`}><img src={fileUrl} alt={document.original_filename} className="size-14 rounded-lg object-cover" /></a> : <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-800 dark:bg-white/5 dark:text-teal-200"><FileText className="size-5" /></span>}
+            <div className="min-w-0 flex-1"><a href={fileUrl} target="_blank" rel="noreferrer" className="block truncate font-semibold text-slate-800 hover:underline dark:text-slate-100">{document.original_filename}</a><p className="mt-1 text-xs text-slate-500">{bases.find((base) => base.id === document.knowledge_base_id)?.name} · {document.size_bytes.toLocaleString()} bytes{document.status === "indexed" ? ` · ${document.chunk_count} chunks` : ""}{document.status === "stored" ? " · Saved" : ""}</p>{document.error_message && <p className="text-sm text-rose-600">{document.error_message}</p>}</div>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.status === "indexed" || document.status === "stored" ? "bg-emerald-100 text-emerald-800" : document.status === "failed" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{document.status === "stored" ? "saved" : document.status}</span>
+            <button type="button" onClick={() => void removeFile(document)} disabled={deletingId === document.id} aria-label={`Permanently delete ${document.original_filename}`} title="Permanently delete" className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"><Trash2 className="size-4" /></button>
+          </div>;
+        })}</div> : <p className="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">No files in this collection yet.</p>}
+      </section> : <section className="surface flex min-h-64 items-center justify-center rounded-2xl p-8 text-center"><div><p className="text-3xl" aria-hidden="true">▤</p><h2 className="mt-3 text-xl font-bold text-slate-950 dark:text-white">Create a collection to get started</h2><p className="mt-2 text-sm text-slate-500">Chat uploads create a collection automatically.</p></div></section>}
+    </div>
+    {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+  </div>;
 }
 
 export function ChatPage() {
@@ -205,7 +296,7 @@ export function ChatPage() {
     try {
       let activeSessionId = sessionId;
       let activeKnowledgeBaseId = baseId;
-      if (documentAttachments.length > 0 && !activeKnowledgeBaseId) {
+      if (attachments.length > 0 && !activeKnowledgeBaseId) {
         const base = await createKnowledgeBase(`Chat files ${Date.now()}`, "Files uploaded from this conversation");
         activeKnowledgeBaseId = base.id;
         setBaseId(base.id);
@@ -219,7 +310,7 @@ export function ChatPage() {
           window.history.replaceState(window.history.state, "", "/chat");
         }
         notifyChatHistoryChanged();
-      } else if (documentAttachments.length > 0 && activeKnowledgeBaseId && activeKnowledgeBaseId !== baseId) {
+      } else if (attachments.length > 0 && activeKnowledgeBaseId && activeKnowledgeBaseId !== baseId) {
         await attachKnowledgeBaseToChat(activeSessionId, activeKnowledgeBaseId);
       }
 
@@ -258,8 +349,13 @@ export function ChatPage() {
 
       if (imageAttachments.length > 0) {
         for (const attachment of imageAttachments) {
+          if (!activeKnowledgeBaseId) throw new Error("Could not prepare a Documents collection for this image.");
+          setUploading(true);
+          setNotice(`Saving ${attachment.file.name} to Documents…`);
+          const savedImage = await uploadDocument(activeKnowledgeBaseId, attachment.file);
+          setChatFiles((current) => [savedImage, ...current.filter((item) => item.id !== savedImage.id)]);
           setNotice(`Analyzing ${attachment.file.name}…`);
-          const reply = await sendImage(activeSessionId, prompt, attachment.file);
+          const reply = await sendImage(activeSessionId, prompt, savedImage.id);
           let previewUrl = attachment.previewUrl;
           if (!previewUrl) {
             previewUrl = URL.createObjectURL(attachment.file);
@@ -270,6 +366,7 @@ export function ChatPage() {
           setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
           notifyChatHistoryChanged();
         }
+        setUploading(false);
         if (documentAttachments.length === 0) {
           setQuestion("");
           setNotice("");
