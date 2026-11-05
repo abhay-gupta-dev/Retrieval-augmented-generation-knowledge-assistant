@@ -61,10 +61,9 @@ async def upload_document(
         )
     )
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"An identical document '{existing.original_filename}' is already indexed in this knowledge base.",
-        )
+        # Make repeated submissions safe: a prior request may have saved the
+        # image successfully even if the separate vision request later failed.
+        return existing
 
     is_image = Path(filename).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
     expected_image_types = {

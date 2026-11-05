@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -32,6 +33,7 @@ from app.services.rag_service import (
 from app.services.document_service import storage_path
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 def owned_session(database: Session, user: User, session_id: UUID) -> ChatSession:
@@ -371,12 +373,20 @@ def send_image(
         response = Groq(api_key=settings.groq_api_key).chat.completions.create(
             model=settings.vision_model,
             messages=messages,
-            temperature=0.3,
-            max_completion_tokens=2048,
+            # Groq's Qwen vision examples use temperature=1. Keep the request
+            # aligned with the model's documented multimodal settings.
+            temperature=1,
+            max_completion_tokens=1024,
         )
         answer = response.choices[0].message.content or "I could not read enough detail from that image. Try asking a more specific question."
     except APIError as error:
         database.rollback()
+        logger.error(
+            "Groq image analysis failed: status=%s request_id=%s model=%s",
+            getattr(error, "status_code", None),
+            getattr(error, "request_id", None),
+            settings.vision_model,
+        )
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Groq image analysis failed: {error.message}") from error
     except Exception as error:
         database.rollback()
