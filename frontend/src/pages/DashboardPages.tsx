@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Copy, Plus, Trash2, X } from "lucide-react";
+import { Check, Copy, FileText, Image as ImageIcon, Plus, Trash2, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { VoiceInputButton, VoiceSpeakerButton } from "../components/VoiceControls";
+
+type PendingAttachment = {
+  id: string;
+  file: File;
+  previewUrl?: string;
+};
 import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -52,6 +58,7 @@ export function ChatPage() {
   const [copiedMessageId, setCopiedMessageId] = useState("");
   const [removingFileId, setRemovingFileId] = useState("");
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const imagePreviewUrls = useRef<string[]>([]);
@@ -114,91 +121,31 @@ export function ChatPage() {
     setQuestion("");
     setError("");
     setNotice("");
+    setPendingAttachments((current) => {
+      current.forEach((attachment) => {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+      });
+      return [];
+    });
   }
 
-  async function uploadFromChat(file: File) {
-    setUploading(true);
+  function stageAttachments(files: File[]) {
+    const attachments = files.map((file) => {
+      const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
+      if (previewUrl) imagePreviewUrls.current.push(previewUrl);
+      return { id: crypto.randomUUID(), file, previewUrl };
+    });
+    setPendingAttachments((current) => [...current, ...attachments]);
     setError("");
     setNotice("");
-    try {
-      let knowledgeBaseId = baseId;
-      if (!knowledgeBaseId) {
-        const base = await createKnowledgeBase(`Chat files ${Date.now()}`, "Files uploaded from this conversation");
-        knowledgeBaseId = base.id;
-        await reload();
-      }
-      const uploaded = await uploadDocument(knowledgeBaseId, file);
-      setBaseId(knowledgeBaseId);
-      setChatFiles((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
-      if (sessionId) {
-        await attachKnowledgeBaseToChat(sessionId, knowledgeBaseId);
-      } else {
-        const chat = await createChat(knowledgeBaseId);
-        setSessionId(chat.id);
-        window.history.replaceState(window.history.state, "", `/chat?chat=${encodeURIComponent(chat.id)}`);
-        notifyChatHistoryChanged();
-      }
-      setIndexing(true);
-      setNotice(`Uploaded ${file.name}. It is being indexed and will be ready for questions shortly.`);
-      void (async () => {
-        for (let attempt = 0; attempt < 60; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 2000));
-          try {
-            const documents = await listDocuments(knowledgeBaseId);
-            setChatFiles(documents);
-            const current = documents.find((document) => document.id === uploaded.id);
-            if (current?.status === "indexed" || current?.status === "ready") {
-              setIndexing(false);
-              setNotice(`${file.name} is ready. Ask a question to get an answer from its contents.`);
-              return;
-            }
-            if (current?.status === "failed") {
-              setIndexing(false);
-              setError(current.error_message || `We could not index ${file.name}.`);
-              setNotice("");
-              return;
-            }
-          } catch {
-            // A temporary status-check failure should not interrupt the upload.
-          }
-        }
-        setIndexing(false);
-        setNotice(`${file.name} is still processing. You can check its status on the Documents page.`);
-      })();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The file could not be uploaded.");
-    } finally {
-      setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
-    }
   }
 
-  async function askAboutImage(file: File) {
-    setUploading(true);
-    setError("");
-    setNotice("");
-    try {
-      let activeSessionId = sessionId;
-      if (!activeSessionId) {
-        const chat = await createChat(baseId || null);
-        activeSessionId = chat.id;
-        setSessionId(chat.id);
-        window.history.replaceState(window.history.state, "", `/chat?chat=${encodeURIComponent(chat.id)}`);
-        notifyChatHistoryChanged();
-      }
-      const reply = await sendImage(activeSessionId, question.trim(), file);
-      const previewUrl = URL.createObjectURL(file);
-      imagePreviewUrls.current.push(previewUrl);
-      setImagePreviews((current) => ({ ...current, [reply.user_message.id]: previewUrl }));
-      setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
-      setQuestion("");
-      notifyChatHistoryChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The image could not be analyzed.");
-    } finally {
-      setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
-    }
+  function removePendingAttachment(id: string) {
+    setPendingAttachments((current) => {
+      const attachment = current.find((item) => item.id === id);
+      if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+      return current.filter((item) => item.id !== id);
+    });
   }
 
   async function copyMessage(message: ChatMessage) {
@@ -227,30 +174,100 @@ export function ChatPage() {
 
   async function ask(event: FormEvent) {
     event.preventDefault();
-    const prompt = question.trim();
-    if (!prompt || sending) return;
+    const attachments = [...pendingAttachments];
+    const imageAttachments = attachments.filter((attachment) => attachment.file.type.startsWith("image/"));
+    const documentAttachments = attachments.filter((attachment) => !attachment.file.type.startsWith("image/"));
+    const prompt = question.trim() || (imageAttachments.length
+      ? "Describe the attached image and explain its important details."
+      : documentAttachments.length ? "Please summarize the attached document." : "");
+    if ((!prompt && attachments.length === 0) || sending) return;
 
     setSending(true);
     setError("");
     setNotice("");
     try {
       let activeSessionId = sessionId;
+      let activeKnowledgeBaseId = baseId;
+      if (documentAttachments.length > 0 && !activeKnowledgeBaseId) {
+        const base = await createKnowledgeBase(`Chat files ${Date.now()}`, "Files uploaded from this conversation");
+        activeKnowledgeBaseId = base.id;
+        setBaseId(base.id);
+        await reload();
+      }
       if (!activeSessionId) {
-        const chat = await createChat(baseId || null);
+        const chat = await createChat(activeKnowledgeBaseId || null);
         activeSessionId = chat.id;
         setSessionId(chat.id);
         if (newChatRequested) {
           window.history.replaceState(window.history.state, "", "/chat");
         }
         notifyChatHistoryChanged();
+      } else if (documentAttachments.length > 0 && activeKnowledgeBaseId && activeKnowledgeBaseId !== baseId) {
+        await attachKnowledgeBaseToChat(activeSessionId, activeKnowledgeBaseId);
+      }
+
+      if (documentAttachments.length > 0 && activeKnowledgeBaseId) {
+        setUploading(true);
+        for (const attachment of documentAttachments) {
+          setNotice(`Uploading ${attachment.file.name}…`);
+          const uploaded = await uploadDocument(activeKnowledgeBaseId, attachment.file);
+          setChatFiles((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
+          setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
+          setIndexing(true);
+          setNotice(`Preparing ${attachment.file.name}…`);
+          let ready = false;
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            await new Promise((resolve) => window.setTimeout(resolve, 2000));
+            try {
+              const documents = await listDocuments(activeKnowledgeBaseId);
+              setChatFiles(documents);
+              const current = documents.find((document) => document.id === uploaded.id);
+              if (current?.status === "failed") {
+                throw new Error(current.error_message || `We could not process ${attachment.file.name}.`);
+              }
+              if (current?.status === "indexed" || current?.status === "ready") {
+                ready = true;
+                break;
+              }
+            } catch (cause) {
+              if (cause instanceof Error && cause.message !== "Failed to fetch") throw cause;
+            }
+          }
+          if (!ready) throw new Error(`${attachment.file.name} is still processing. Please try sending your message again in a moment.`);
+        }
+        setUploading(false);
+        setIndexing(false);
+      }
+
+      if (imageAttachments.length > 0) {
+        for (const attachment of imageAttachments) {
+          setNotice(`Analyzing ${attachment.file.name}…`);
+          const reply = await sendImage(activeSessionId, prompt, attachment.file);
+          let previewUrl = attachment.previewUrl;
+          if (!previewUrl) {
+            previewUrl = URL.createObjectURL(attachment.file);
+            imagePreviewUrls.current.push(previewUrl);
+          }
+          setImagePreviews((current) => ({ ...current, [reply.user_message.id]: previewUrl! }));
+          setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
+          setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
+          notifyChatHistoryChanged();
+        }
+        if (documentAttachments.length === 0) {
+          setQuestion("");
+          setNotice("");
+          return;
+        }
       }
 
       // General questions do not need the document retrieval or SSE pipeline.
       // Use the regular chat endpoint unless this conversation has an attached
       // knowledge base, which opts into document-grounded answers.
-      if (!baseId) {
+      if (!activeKnowledgeBaseId) {
         const reply = await sendMessage(activeSessionId, prompt);
         setQuestion("");
+        setPendingAttachments([]);
+        setNotice("");
         setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
         notifyChatHistoryChanged();
         return;
@@ -264,6 +281,7 @@ export function ChatPage() {
           onUserMessage: (message) => {
             userMessageAccepted = true;
             setQuestion("");
+            setPendingAttachments([]);
             setMessages((current) => [...current, { ...message, role: "user", citations: [] } as ChatMessage]);
             notifyChatHistoryChanged();
           },
@@ -299,6 +317,7 @@ export function ChatPage() {
           : await sendMessage(activeSessionId, prompt);
         setError("");
         setQuestion("");
+        setPendingAttachments([]);
         setMessages((current) => {
           const withoutPartial = current.filter((message) => message.id !== `stream-${activeSessionId}`);
           return userMessageAccepted
@@ -310,7 +329,10 @@ export function ChatPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not get an answer.");
     } finally {
+      setUploading(false);
+      setIndexing(false);
       setSending(false);
+      setNotice("");
     }
   }
 
@@ -347,12 +369,23 @@ export function ChatPage() {
     {notice && <p role="status" className="rounded-xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950/40 dark:text-teal-100">{notice}</p>}
     {error && <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"><p className="min-w-0 flex-1">{error}</p><button type="button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setError("")} className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60"><X className="size-4" /></button></div>}
 
-    <form onSubmit={(event) => void ask(event)} className="surface flex shrink-0 items-end gap-1.5 rounded-2xl p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] sm:gap-2 sm:p-2">
-      <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,.pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (file.type.startsWith("image/")) void askAboutImage(file); else void uploadFromChat(file); } }} />
-      <button type="button" aria-label="Upload an image or document" title="Upload an image or document" disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#28413a] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
-      <textarea rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} disabled={sending} placeholder="Ask anything…" aria-label="Your message" style={{ resize: "none" }} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 dark:text-white sm:min-h-12 sm:px-3 sm:py-3" />
-      <div className="shrink-0 [&_button]:size-10 sm:[&_button]:size-12"><VoiceInputButton disabled={sending || uploading || indexing} onTranscript={(transcript) => setQuestion((current) => current ? `${current} ${transcript}` : transcript)} /></div>
-      <button type="submit" disabled={sending || uploading || indexing || !question.trim()} aria-label="Send message" className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#163a32] text-lg text-white transition hover:bg-[#1d4b40] disabled:cursor-not-allowed disabled:opacity-40 sm:size-12">↑</button>
+    <form onSubmit={(event) => void ask(event)} className="surface flex shrink-0 flex-col gap-1.5 rounded-2xl p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] sm:gap-2 sm:p-2">
+      <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,.pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { if (event.target.files?.length) stageAttachments(Array.from(event.target.files)); if (fileInput.current) fileInput.current.value = ""; }} />
+      {pendingAttachments.length > 0 && <div className="flex max-w-full gap-2 overflow-x-auto px-1 pt-1" aria-label="Pending attachments">
+        {pendingAttachments.map((attachment) => <div key={attachment.id} className="flex h-12 max-w-48 shrink-0 items-center gap-2 rounded-xl bg-slate-100 p-1.5 dark:bg-white/10">
+          {attachment.previewUrl
+            ? <img src={attachment.previewUrl} alt="" className="size-9 shrink-0 rounded-lg object-cover" />
+            : <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-slate-500 dark:bg-[#141312] dark:text-slate-300">{attachment.file.type.startsWith("image/") ? <ImageIcon className="size-4" /> : <FileText className="size-4" />}</span>}
+          <span className="max-w-28 truncate text-xs text-slate-700 dark:text-slate-200">{attachment.file.name}</span>
+          <button type="button" aria-label={`Remove ${attachment.file.name}`} onClick={() => removePendingAttachment(attachment.id)} className="grid size-7 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/10"><X className="size-3.5" /></button>
+        </div>)}
+      </div>}
+      <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
+        <button type="button" aria-label="Attach images or files" title="Attach images or files" disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#28413a] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
+        <textarea rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} disabled={sending} placeholder="Ask anything…" aria-label="Your message" style={{ resize: "none" }} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 dark:text-white sm:min-h-12 sm:px-3 sm:py-3" />
+        <div className="shrink-0 [&_button]:size-10 sm:[&_button]:size-12"><VoiceInputButton disabled={sending || uploading || indexing} onTranscript={(transcript) => setQuestion((current) => current ? `${current} ${transcript}` : transcript)} /></div>
+        <button type="submit" disabled={sending || uploading || indexing || (!question.trim() && pendingAttachments.length === 0)} aria-label="Send message" className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#163a32] text-lg text-white transition hover:bg-[#1d4b40] disabled:cursor-not-allowed disabled:opacity-40 sm:size-12">↑</button>
+      </div>
     </form>
     {(uploading || indexing) && <p role="status" className="text-sm text-slate-500">{uploading ? "Uploading your file…" : "Indexing your file… You can start chatting when it is ready."}</p>}
   </div>;

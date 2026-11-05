@@ -41,12 +41,17 @@ let activeUtterance: SpeechSynthesisUtterance | null = null;
 export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<VoiceInputButtonProps>) {
   const recognitionRef = useRef<RecognitionInstance | null>(null);
   const transcriptRef = useRef("");
-  const [state, setState] = useState<"idle" | "listening" | "stopped" | "error">("idle");
+  const segmentRef = useRef("");
+  const shouldListenRef = useRef(false);
+  const restartTimerRef = useRef<number | null>(null);
+  const [state, setState] = useState<"idle" | "listening" | "error">("idle");
   const [message, setMessage] = useState("");
   const recognitionConstructor = (window as SpeechWindow).SpeechRecognition ?? (window as SpeechWindow).webkitSpeechRecognition;
   const Recognition = recognitionConstructor;
 
   useEffect(() => () => {
+    shouldListenRef.current = false;
+    if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
     recognitionRef.current?.stop();
     recognitionRef.current = null;
   }, []);
@@ -55,64 +60,87 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     return <output className="hidden self-center text-xs text-slate-500 sm:block">Voice input unavailable</output>;
   }
 
-  function toggleListening() {
-    if (state === "listening") {
-      recognitionRef.current?.stop();
-      return;
-    }
-    if (!Recognition) return;
-
-    recognitionRef.current?.stop();
+  function startRecognition() {
+    if (!Recognition || !shouldListenRef.current) return;
     const recognition = new Recognition();
-    transcriptRef.current = "";
-    recognition.continuous = false;
+    segmentRef.current = "";
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-IN";
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
       const results = Array.from({ length: event.results.length }, (_, index) => event.results[index][0].transcript);
-      transcriptRef.current = results.join(" ").trim();
+      segmentRef.current = results.join(" ").trim();
     };
     recognition.onerror = (event) => {
+      if (event.error === "no-speech" || event.error === "aborted") return;
+      shouldListenRef.current = false;
       setState("error");
       const messages: Record<string, string> = {
         "audio-capture": "No microphone was found or it is already in use.",
         "network": "Speech recognition needs a network connection.",
         "not-allowed": "Microphone permission was denied.",
-        "no-speech": "No speech detected. Try again.",
         "service-not-allowed": "Speech recognition is not allowed in this browser.",
       };
       setMessage(messages[event.error ?? ""] ?? "Speech recognition failed. Try again.");
     };
-    recognition.onnomatch = () => {
-      setState("error");
-      setMessage("No speech detected. Try again.");
-    };
+    recognition.onnomatch = () => {};
     recognition.onend = () => {
-      const transcript = transcriptRef.current.trim();
-      if (transcript) {
-        onTranscript(transcript);
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      const segment = segmentRef.current.trim();
+      if (segment) transcriptRef.current = [transcriptRef.current, segment].filter(Boolean).join(" ");
+      segmentRef.current = "";
+      if (shouldListenRef.current) {
+        restartTimerRef.current = window.setTimeout(startRecognition, 250);
+        return;
       }
-      setState((current) => current === "error" ? current : "stopped");
-      recognitionRef.current = null;
+      const transcript = transcriptRef.current.trim();
+      if (transcript) onTranscript(transcript);
+      transcriptRef.current = "";
+      setState((current) => current === "error" ? current : "idle");
     };
     recognitionRef.current = recognition;
-    setMessage("");
-    setState("listening");
     try {
       recognition.start();
     } catch {
       recognitionRef.current = null;
+      shouldListenRef.current = false;
       setState("error");
       setMessage("Could not start the microphone. Try again.");
     }
   }
 
+  function toggleListening() {
+    if (state === "listening") {
+      shouldListenRef.current = false;
+      if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      } else {
+        const transcript = transcriptRef.current.trim();
+        if (transcript) onTranscript(transcript);
+        transcriptRef.current = "";
+        setState("idle");
+      }
+      return;
+    }
+    if (!Recognition) return;
+    transcriptRef.current = "";
+    segmentRef.current = "";
+    shouldListenRef.current = true;
+    setMessage("");
+    setState("listening");
+    startRecognition();
+  }
+
   return <span className="inline-flex items-center gap-2">
     <button type="button" onClick={toggleListening} disabled={disabled} aria-label={state === "listening" ? "Stop listening" : "Start voice input"} title={state === "listening" ? "Stop listening" : "Start voice input"} className={`grid size-10 place-items-center rounded-full transition disabled:opacity-50 sm:size-12 ${state === "listening" ? "bg-rose-600 text-white shadow-md shadow-rose-900/20" : "bg-[#163a32] text-white hover:bg-[#1d4b40]"}`}>
-      {state === "listening" ? <AudioLines className="size-5 animate-pulse" aria-hidden="true" /> : <Mic className="size-5" aria-hidden="true" />}
+      {state === "listening" ? <AudioLines className="size-5" aria-hidden="true" /> : <Mic className="size-5" aria-hidden="true" />}
     </button>
-    {message && <output className="text-xs text-rose-600">{message}</output>}
+    {state === "listening" && <span role="status" aria-label="Listening" className="inline-flex h-8 items-center gap-0.5 px-1">
+      {[10, 18, 12, 22, 14, 8].map((height, index) => <span key={`${height}-${index}`} className="w-1 animate-pulse rounded-full bg-teal-600 dark:bg-teal-300" style={{ height, animationDelay: `${index * 90}ms` }} />)}
+    </span>}
+    {message && <output className="max-w-28 truncate text-[10px] leading-tight text-rose-600" title={message}>{message}</output>}
   </span>;
 }
 
