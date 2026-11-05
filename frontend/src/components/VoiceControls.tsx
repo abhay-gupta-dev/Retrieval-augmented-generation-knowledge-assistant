@@ -64,7 +64,7 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     if (!Recognition || !shouldListenRef.current) return;
     const recognition = new Recognition();
     segmentRef.current = "";
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-IN";
     recognition.maxAlternatives = 1;
@@ -87,15 +87,19 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     recognition.onnomatch = () => {};
     recognition.onend = () => {
       if (recognitionRef.current === recognition) recognitionRef.current = null;
-      const segment = segmentRef.current.trim();
-      if (segment) transcriptRef.current = [transcriptRef.current, segment].filter(Boolean).join(" ");
+      const transcript = segmentRef.current.trim();
       segmentRef.current = "";
+      if (transcript) {
+        shouldListenRef.current = false;
+        transcriptRef.current = "";
+        onTranscript(transcript);
+        setState("idle");
+        return;
+      }
       if (shouldListenRef.current) {
         restartTimerRef.current = window.setTimeout(startRecognition, 250);
         return;
       }
-      const transcript = transcriptRef.current.trim();
-      if (transcript) onTranscript(transcript);
       transcriptRef.current = "";
       setState((current) => current === "error" ? current : "idle");
     };
@@ -117,9 +121,10 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       } else {
-        const transcript = transcriptRef.current.trim();
+        const transcript = [transcriptRef.current, segmentRef.current].filter(Boolean).join(" ").trim();
         if (transcript) onTranscript(transcript);
         transcriptRef.current = "";
+        segmentRef.current = "";
         setState("idle");
       }
       return;
