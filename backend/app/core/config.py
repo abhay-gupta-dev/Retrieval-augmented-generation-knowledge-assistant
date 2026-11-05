@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_dimensions: int = 384
     chat_model: str = "openai/gpt-oss-20b"
+    vision_model: str = "qwen/qwen3.8-27b"
     groq_api_key: str = ""
+    max_image_bytes: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

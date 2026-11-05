@@ -388,6 +388,19 @@ export const sendMessage = (
     body: JSON.stringify({ content }),
   });
 
+export const sendImage = (sessionId: string, prompt: string, image: File) => {
+  const form = new FormData();
+  form.append("image", image);
+  form.append("prompt", prompt);
+  return request<{
+    user_message: ChatMessage;
+    assistant_message: ChatMessage;
+  }>(`/api/v1/chat/${sessionId}/images`, {
+    method: "POST",
+    body: form,
+  });
+};
+
 export const retryMessage = (sessionId: string) =>
   request<{
     user_message: ChatMessage;

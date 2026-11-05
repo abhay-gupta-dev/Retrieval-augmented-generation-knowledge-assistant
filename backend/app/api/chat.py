@@ -1,14 +1,17 @@
 """Persistent, knowledge-base-scoped RAG conversations with streaming and management."""
 
+import base64
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from groq import APIError, Groq
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.knowledge_base import owned_knowledge_base
+from app.core.config import get_settings
 from app.core.security import get_current_user
 from app.database.connection import SessionLocal, get_db
 from app.database.models import ChatMessage, ChatSession, KnowledgeBase, User
@@ -242,6 +245,79 @@ def send_message(
         user_message=message_response(user_message),
         assistant_message=message_response(assistant_message),
     )
+
+
+@router.post("/{session_id}/images", response_model=ChatReply)
+def send_image(
+    session_id: UUID,
+    image: UploadFile = File(...),
+    prompt: str = Form(default=""),
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> ChatReply:
+    """Ask the configured Groq vision model about an image in this chat."""
+    settings = get_settings()
+    if not settings.groq_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image understanding is not configured on the server.")
+
+    allowed_types = {"image/jpeg", "image/png", "image/webp"}
+    if image.content_type not in allowed_types:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Choose a JPEG, PNG, or WebP image.")
+
+    image_bytes = image.file.read(settings.max_image_bytes + 1)
+    if not image_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The selected image is empty.")
+    if len(image_bytes) > settings.max_image_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Images must be 10 MB or smaller.")
+
+    session = owned_session(database, user, session_id)
+    filename = (image.filename or "uploaded image").replace("\\", "/").split("/")[-1][:180]
+    question = prompt.strip()[:4000] or "Describe this image and explain its important details."
+    user_content = f"[Image attached: {filename}] {question}"
+    user_message = ChatMessage(session_id=session.id, role="user", content=user_content)
+    database.add(user_message)
+    database.flush()
+
+    history_rows = list(database.scalars(
+        select(ChatMessage).where(
+            ChatMessage.session_id == session.id,
+            ChatMessage.id != user_message.id,
+        ).order_by(ChatMessage.created_at.asc())
+    ))
+    messages = [{"role": "system", "content": "You are a helpful assistant. Answer questions about the user's uploaded image clearly and accurately. If the image does not contain enough information, say so."}]
+    messages.extend({"role": row.role, "content": row.content} for row in history_rows[-8:])
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "text", "text": question},
+            {"type": "image_url", "image_url": {"url": f"data:{image.content_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"}},
+        ],
+    })
+
+    try:
+        response = Groq(api_key=settings.groq_api_key).chat.completions.create(
+            model=settings.vision_model,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2048,
+        )
+        answer = response.choices[0].message.content or "I could not read enough detail from that image. Try asking a more specific question."
+    except APIError as error:
+        database.rollback()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Groq image analysis failed: {error.message}") from error
+    except Exception as error:
+        database.rollback()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image analysis failed. Please try another image.") from error
+
+    assistant_message = ChatMessage(session_id=session.id, role="assistant", content=answer, citations="[]")
+    database.add(assistant_message)
+    if session.title == "New conversation":
+        session.title = (prompt.strip() or f"Image: {filename}")[:60]
+    session.updated_at = func.now()
+    database.commit()
+    database.refresh(user_message)
+    database.refresh(assistant_message)
+    return ChatReply(user_message=message_response(user_message), assistant_message=message_response(assistant_message))
 
 
 @router.post("/{session_id}/messages/stream")

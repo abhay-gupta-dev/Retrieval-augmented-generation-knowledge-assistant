@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { HealthStatus } from "../components/HealthStatus";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { VoiceInputButton, VoiceSpeakerButton } from "../components/VoiceControls";
-import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
+import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 function useKnowledgeBases() {
@@ -51,8 +51,14 @@ export function ChatPage() {
   const [indexing, setIndexing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState("");
   const [removingFileId, setRemovingFileId] = useState("");
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const imagePreviewUrls = useRef<string[]>([]);
+
+  useEffect(() => () => {
+    imagePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   useEffect(() => {
     if (newChatRequested) {
@@ -161,6 +167,34 @@ export function ChatPage() {
       })();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The file could not be uploaded.");
+    } finally {
+      setUploading(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  }
+
+  async function askAboutImage(file: File) {
+    setUploading(true);
+    setError("");
+    setNotice("");
+    try {
+      let activeSessionId = sessionId;
+      if (!activeSessionId) {
+        const chat = await createChat(baseId || null);
+        activeSessionId = chat.id;
+        setSessionId(chat.id);
+        window.history.replaceState(window.history.state, "", `/chat?chat=${encodeURIComponent(chat.id)}`);
+        notifyChatHistoryChanged();
+      }
+      const reply = await sendImage(activeSessionId, question.trim(), file);
+      const previewUrl = URL.createObjectURL(file);
+      imagePreviewUrls.current.push(previewUrl);
+      setImagePreviews((current) => ({ ...current, [reply.user_message.id]: previewUrl }));
+      setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
+      setQuestion("");
+      notifyChatHistoryChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The image could not be analyzed.");
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = "";
@@ -288,6 +322,7 @@ export function ChatPage() {
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
       </div></div>}
       {messages.map((message) => <article key={message.id} className={`w-full break-words rounded-2xl p-4 sm:p-5 ${message.role === "user" ? "ml-auto max-w-[95%] bg-[#163a32] text-white sm:max-w-[78%]" : "mr-auto max-w-full bg-[#eef6f1] text-slate-900 dark:bg-white/5 dark:text-white"}`}>
+        {message.role === "user" && imagePreviews[message.id] && <img src={imagePreviews[message.id]} alt="Image attached to this message" className="mb-3 max-h-72 max-w-full rounded-xl object-contain" />}
         {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
         <div className="mt-3 flex items-center gap-2">
@@ -313,8 +348,8 @@ export function ChatPage() {
     {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">{error}</p>}
 
     <form onSubmit={(event) => void ask(event)} className="surface flex shrink-0 items-end gap-1.5 rounded-2xl p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] sm:gap-2 sm:p-2">
-      <input ref={fileInput} type="file" accept=".pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadFromChat(file); }} />
-      <button type="button" aria-label="Upload a PDF or document" title="Upload a PDF or document" disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#28413a] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
+      <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,.pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (file.type.startsWith("image/")) void askAboutImage(file); else void uploadFromChat(file); } }} />
+      <button type="button" aria-label="Upload an image or document" title="Upload an image or document" disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#28413a] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
       <textarea rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} disabled={sending} placeholder="Ask anything…" aria-label="Your message" style={{ resize: "none" }} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 dark:text-white sm:min-h-12 sm:px-3 sm:py-3" />
       <div className="shrink-0 [&_button]:size-10 sm:[&_button]:size-12"><VoiceInputButton disabled={sending || uploading || indexing} onTranscript={(transcript) => setQuestion((current) => current ? `${current} ${transcript}` : transcript)} /></div>
       <button type="submit" disabled={sending || uploading || indexing || !question.trim()} aria-label="Send message" className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#163a32] text-lg text-white transition hover:bg-[#1d4b40] disabled:cursor-not-allowed disabled:opacity-40 sm:size-12">↑</button>
