@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LogIn, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LogIn, Menu, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
@@ -15,7 +15,7 @@ const links = [
   ["/profile", "Profile settings", "◉"],
 ];
 
-function Navigation({ onNavigate }: { onNavigate?: () => void }) {
+function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   return (
     <nav className="space-y-1" aria-label="Primary navigation">
       {links.map(([to, label, icon]) => (
@@ -23,8 +23,10 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
           key={to}
           to={to}
           onClick={onNavigate}
+          title={compact ? label : undefined}
+          aria-label={compact ? label : undefined}
           className={({ isActive }) =>
-            `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+            `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${compact ? "justify-center px-0" : ""} ${
               isActive
                 ? "bg-teal-100 text-teal-950 dark:bg-white/10 dark:text-teal-200"
                 : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
@@ -108,6 +110,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
 export function DashboardLayout() {
   const { isGuest } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(
     () => window.localStorage.getItem("knowledge-platform:sidebar-hidden") !== "true"
@@ -129,6 +132,18 @@ export function DashboardLayout() {
         <div className="shrink-0">
           {isGuest && <a href="/account" className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-teal-700 px-3 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-50 dark:border-teal-400 dark:text-teal-200 dark:hover:bg-white/5"><LogIn className="size-4" />Sign in or sign up</a>}
           <ProfileMenu />
+        </div>
+      </aside>}
+
+      {!sidebarVisible && <aside aria-label="Collapsed navigation" className="app-sidebar relative z-10 hidden h-full w-[4.5rem] shrink-0 flex-col justify-between overflow-visible border-r border-slate-200 bg-white px-2 py-3 text-slate-800 dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:flex">
+        <div className="flex flex-col items-center gap-2">
+          <button type="button" onClick={() => setSidebarVisible(true)} aria-label="Show sidebar" title="Show sidebar" className="grid size-11 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><PanelLeftOpen className="size-5" /></button>
+          <button type="button" onClick={() => navigate("/chat?new=1")} aria-label="New chat" title="New chat" className="grid size-11 place-items-center rounded-xl bg-teal-300 text-[#102522] transition hover:bg-teal-200"><Plus className="size-5" /></button>
+          <div className="mt-1 w-full"><Navigation compact /></div>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          {isGuest && <a href="/account" aria-label="Sign in or sign up" title="Sign in or sign up" className="grid size-11 place-items-center rounded-xl border border-teal-700 text-teal-800 hover:bg-teal-50 dark:border-teal-400 dark:text-teal-200 dark:hover:bg-white/5"><LogIn className="size-4" /></a>}
+          <ProfileMenu compact />
         </div>
       </aside>}
 
@@ -175,14 +190,14 @@ export function DashboardLayout() {
               className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600 dark:border-[#3a3935] dark:bg-[#1c1b18] dark:text-slate-100 dark:hover:bg-white/10 md:hidden"
             ><Menu className="size-5" /></button>
             <div className="md:hidden"><Logo compact /></div>
-            <button
+            {sidebarVisible && <button
               type="button"
               onClick={() => setSidebarVisible((visible) => !visible)}
               aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
               title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
               aria-pressed={sidebarVisible}
               className="hidden rounded-lg p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 md:inline-flex"
-            >{sidebarVisible ? <PanelLeftClose className="size-5" /> : <PanelLeftOpen className="size-5" />}</button>
+            ><PanelLeftClose className="size-5" /></button>}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <div className="md:hidden"><ProfileMenu align="right" /></div>
             </div>
