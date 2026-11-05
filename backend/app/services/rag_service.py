@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 from collections.abc import Generator
-from functools import lru_cache
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
 
 from groq import APIError, Groq
@@ -16,26 +17,28 @@ from app.core.config import get_settings
 from app.database.models import Document, DocumentChunk, KnowledgeBase
 from app.schemas.rag import Citation
 
-if TYPE_CHECKING:
-    from sentence_transformers import SentenceTransformer
-
-
-@lru_cache
-def embedding_model() -> SentenceTransformer:
-    # PyTorch and sentence-transformers consume substantial RAM at import and
-    # model load time. Keep them out of web-service startup so auth, chat, and
-    # health checks can run on small instances; load them only when indexing or
-    # searching a document actually needs embeddings.
-    from sentence_transformers import SentenceTransformer
-
-    return SentenceTransformer(get_settings().embedding_model)
-
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    vectors = embedding_model().encode(texts, normalize_embeddings=True, show_progress_bar=False)
-    if vectors.shape[1] != 384:
-        raise RuntimeError("This deployment expects a 384-dimensional embedding model.")
-    return vectors.tolist()
+    """Build small hashed vectors without loading PyTorch or downloading a model.
+
+    PostgreSQL full-text ranking below is the primary retrieval path. These
+    vectors preserve the existing pgvector column and provide a cheap fallback
+    score without exhausting memory on small hosted instances.
+    """
+    vectors: list[list[float]] = []
+    for text in texts:
+        vector = [0.0] * 384
+        words = re.findall(r"[\w]+", text.casefold(), flags=re.UNICODE)
+        features = words + [f"{left} {right}" for left, right in zip(words, words[1:])]
+        for feature in features:
+            digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=8).digest()
+            index = int.from_bytes(digest[:4], "little") % len(vector)
+            vector[index] += 1.0 if digest[4] & 1 else -1.0
+        magnitude = sum(value * value for value in vector) ** 0.5
+        if magnitude:
+            vector = [value / magnitude for value in vector]
+        vectors.append(vector)
+    return vectors
 
 
 def retrieve(
@@ -49,40 +52,43 @@ def retrieve(
     if not knowledge_base_id:
         return []
 
-    # Only embed a query when there is indexed content to search. Queued,
-    # processing, failed, or empty documents should not make general chat
-    # depend on loading the embedding model.
-    indexed_chunk = database.scalar(
-        select(DocumentChunk.id)
+    scope = [
+        Document.knowledge_base_id == knowledge_base_id,
+        Document.status.in_(["ready", "indexed"]),
+        *([KnowledgeBase.owner_id == user_id] if user_id else []),
+    ]
+    simple_vector = func.to_tsvector("simple", DocumentChunk.content)
+    simple_query = func.plainto_tsquery("simple", question)
+    english_vector = func.to_tsvector("english", DocumentChunk.content)
+    english_query = func.plainto_tsquery("english", question)
+    rank = (
+        func.ts_rank_cd(simple_vector, simple_query)
+        + func.ts_rank_cd(english_vector, english_query)
+    ).label("rank")
+    lexical_rows = database.execute(
+        select(DocumentChunk, Document, rank)
         .join(Document, Document.id == DocumentChunk.document_id)
         .join(KnowledgeBase, KnowledgeBase.id == Document.knowledge_base_id)
-        .where(
-            Document.knowledge_base_id == knowledge_base_id,
-            Document.status.in_(["ready", "indexed"]),
-            *( [KnowledgeBase.owner_id == user_id] if user_id else [] )
-        )
-        .limit(1)
-    )
-    if indexed_chunk is None:
-        return []
+        .where(*scope, simple_vector.op("@@")(simple_query) | english_vector.op("@@")(english_query))
+        .order_by(rank.desc())
+        .limit(limit)
+    ).all()
+    if lexical_rows:
+        return [(chunk, document, float(score)) for chunk, document, score in lexical_rows]
 
+    # If stemming/token matching finds nothing, fall back to the compact
+    # feature-hashed vectors so related word combinations can still surface.
     query_embedding = embed_texts([question])[0]
     distance = DocumentChunk.embedding.cosine_distance(query_embedding).label("distance")
-
-    rows = database.execute(
+    vector_rows = database.execute(
         select(DocumentChunk, Document, distance)
         .join(Document, Document.id == DocumentChunk.document_id)
         .join(KnowledgeBase, KnowledgeBase.id == Document.knowledge_base_id)
-        .where(
-            Document.knowledge_base_id == knowledge_base_id,
-            Document.status.in_(["ready", "indexed"]),
-            *( [KnowledgeBase.owner_id == user_id] if user_id else [] )
-        )
+        .where(*scope)
         .order_by(distance)
         .limit(limit)
     ).all()
-
-    return [(chunk, document, float(val)) for chunk, document, val in rows]
+    return [(chunk, document, float(score)) for chunk, document, score in vector_rows]
 
 
 def build_rag_prompt(

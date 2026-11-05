@@ -141,7 +141,6 @@ export function ChatPage() {
   const requestedChatId = searchParams.get("chat");
   const newChatRequested = searchParams.get("new") === "1";
   const [baseId, setBaseId] = useState("");
-  const [chatFiles, setChatFiles] = useState<IndexedDocument[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [sessionId, setSessionId] = useState("");
@@ -151,7 +150,6 @@ export function ChatPage() {
   const [uploading, setUploading] = useState(false);
   const [indexing, setIndexing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState("");
-  const [removingFileId, setRemovingFileId] = useState("");
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -209,22 +207,9 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  useEffect(() => {
-    let active = true;
-    if (!baseId) {
-      setChatFiles([]);
-      return () => { active = false; };
-    }
-    void listDocuments(baseId)
-      .then((items) => { if (active) setChatFiles(items); })
-      .catch(() => { if (active) setChatFiles([]); });
-    return () => { active = false; };
-  }, [baseId]);
-
   function startNewChat() {
     setSessionId("");
     setBaseId("");
-    setChatFiles([]);
     setMessages([]);
     setQuestion("");
     setError("");
@@ -263,20 +248,6 @@ export function ChatPage() {
       window.setTimeout(() => setCopiedMessageId((current) => current === message.id ? "" : current), 1800);
     } catch {
       setError("Could not copy this message. Check your browser clipboard permissions.");
-    }
-  }
-
-  async function removeChatFile(file: IndexedDocument) {
-    if (!baseId || !window.confirm(`Remove “${file.original_filename}” from this chat? This deletes the uploaded file and its indexed content.`)) return;
-    setRemovingFileId(file.id);
-    setError("");
-    try {
-      await deleteDocument(baseId, file.id);
-      setChatFiles((current) => current.filter((item) => item.id !== file.id));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not remove the uploaded file.");
-    } finally {
-      setRemovingFileId("");
     }
   }
 
@@ -319,7 +290,6 @@ export function ChatPage() {
         for (const attachment of documentAttachments) {
           setNotice(`Uploading ${attachment.file.name}…`);
           const uploaded = await uploadDocument(activeKnowledgeBaseId, attachment.file);
-          setChatFiles((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
           setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
           setIndexing(true);
           setNotice(`Preparing ${attachment.file.name}…`);
@@ -328,7 +298,6 @@ export function ChatPage() {
             await new Promise((resolve) => window.setTimeout(resolve, 2000));
             try {
               const documents = await listDocuments(activeKnowledgeBaseId);
-              setChatFiles(documents);
               const current = documents.find((document) => document.id === uploaded.id);
               if (current?.status === "failed") {
                 throw new Error(current.error_message || `We could not process ${attachment.file.name}.`);
@@ -353,7 +322,6 @@ export function ChatPage() {
           setUploading(true);
           setNotice(`Saving ${attachment.file.name} to Documents…`);
           const savedImage = await uploadDocument(activeKnowledgeBaseId, attachment.file);
-          setChatFiles((current) => [savedImage, ...current.filter((item) => item.id !== savedImage.id)]);
           // The attachment has been sent and safely saved. Remove its composer
           // chip now instead of leaving it visible while vision inference runs.
           setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
@@ -474,13 +442,6 @@ export function ChatPage() {
       {sending && <div className="mr-auto flex items-center gap-2 rounded-2xl bg-[#eef6f1] px-5 py-4 text-sm text-slate-500 dark:bg-white/5"><span className="size-2 animate-pulse rounded-full bg-teal-600" /><span>Thinking…</span></div>}
       <div ref={bottomRef} />
     </section>
-
-    {chatFiles.length > 0 && <section aria-label="Files in this chat" className="flex shrink-0 flex-wrap items-center gap-2 px-1">
-      {chatFiles.map((file) => <div key={file.id} className="flex max-w-full items-center gap-1 rounded-lg border border-[#cbdcd4] bg-white py-1 pl-3 pr-1 text-xs font-medium text-slate-700 dark:border-[#28413a] dark:bg-[#14231f] dark:text-slate-200">
-        <a href={`/api/v1/knowledge-bases/${encodeURIComponent(baseId)}/documents/${encodeURIComponent(file.id)}/file`} target="_blank" rel="noreferrer" title={`Open ${file.original_filename}`} className="max-w-56 truncate py-1 hover:underline">📄 {file.original_filename} <span className="text-slate-400">· {file.status}</span></a>
-        <button type="button" onClick={() => void removeChatFile(file)} disabled={removingFileId === file.id} aria-label={`Remove ${file.original_filename}`} title="Remove file" className="grid size-7 shrink-0 place-items-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"><Trash2 className="size-3.5" /></button>
-      </div>)}
-    </section>}
 
     {notice && <p role="status" className="rounded-xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950/40 dark:text-teal-100">{notice}</p>}
     {error && <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"><p className="min-w-0 flex-1">{error}</p><button type="button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setError("")} className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60"><X className="size-4" /></button></div>}
