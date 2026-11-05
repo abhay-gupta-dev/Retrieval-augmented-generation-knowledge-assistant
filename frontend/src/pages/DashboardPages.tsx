@@ -354,6 +354,9 @@ export function ChatPage() {
           setNotice(`Saving ${attachment.file.name} to Documents…`);
           const savedImage = await uploadDocument(activeKnowledgeBaseId, attachment.file);
           setChatFiles((current) => [savedImage, ...current.filter((item) => item.id !== savedImage.id)]);
+          // The attachment has been sent and safely saved. Remove its composer
+          // chip now instead of leaving it visible while vision inference runs.
+          setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
           setNotice(`Analyzing ${attachment.file.name}…`);
           const reply = await sendImage(activeSessionId, prompt, savedImage.id);
           let previewUrl = attachment.previewUrl;
@@ -363,7 +366,6 @@ export function ChatPage() {
           }
           setImagePreviews((current) => ({ ...current, [reply.user_message.id]: previewUrl! }));
           setMessages((current) => [...current, reply.user_message, reply.assistant_message]);
-          setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
           notifyChatHistoryChanged();
         }
         setUploading(false);
