@@ -286,7 +286,6 @@ export function ChatPage() {
         <p className="text-4xl" aria-hidden="true">✦</p>
         <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{user?.provider === "guest" ? "Welcome to Cognitive RAG!" : `Welcome${user?.name ? `, ${user.name.trim().split(/\s+/)[0]}` : ""}!`}</h2>
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
-        <p className="mt-2 max-w-sm text-sm leading-6 text-slate-600 dark:text-slate-400">Ask anything to get started. Upload a document with the + button when you want answers grounded in your files.</p>
       </div></div>}
       {messages.map((message) => <article key={message.id} className={`w-full break-words rounded-2xl p-4 sm:p-5 ${message.role === "user" ? "ml-auto max-w-[95%] bg-[#163a32] text-white sm:max-w-[78%]" : "mr-auto max-w-full bg-[#eef6f1] text-slate-900 dark:bg-white/5 dark:text-white"}`}>
         {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p>}

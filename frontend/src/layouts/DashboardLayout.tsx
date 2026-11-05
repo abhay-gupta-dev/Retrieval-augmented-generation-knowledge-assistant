@@ -146,7 +146,7 @@ export function DashboardLayout() {
         }`}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="mb-5 flex shrink-0 items-center justify-between px-2">
+          <div className="mb-3 flex shrink-0 items-center justify-between px-2">
             <Logo />
             <button
               onClick={() => setMenuOpen(false)}
