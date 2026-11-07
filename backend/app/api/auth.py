@@ -128,7 +128,9 @@ def guest_login(
             if payload.get("type") == "access":
                 user_id = uuid.UUID(payload["sub"])
                 existing = database.get(User, user_id)
-                if existing:
+                # Keep an existing guest workspace on this browser, but never
+                # treat a signed-in account cookie as a guest session.
+                if existing and existing.provider == "guest":
                     return existing
         except Exception:
             pass
