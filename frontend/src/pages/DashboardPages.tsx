@@ -155,6 +155,8 @@ export function ChatPage() {
   const [editingMessageId, setEditingMessageId] = useState("");
   const [editDraft, setEditDraft] = useState("");
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [documentLinks, setDocumentLinks] = useState<Record<string, string>>({});
+  const [previewImage, setPreviewImage] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -223,6 +225,15 @@ export function ChatPage() {
         setSessionId(targetChat.id);
         setBaseId(targetChat.knowledge_base_id ?? "");
         setMessages(await listMessages(targetChat.id));
+        if (targetChat.knowledge_base_id) {
+          const documents = await listDocuments(targetChat.knowledge_base_id);
+          setDocumentLinks(Object.fromEntries(documents.map((document) => [
+            document.original_filename,
+            `/api/v1/knowledge-bases/${targetChat.knowledge_base_id}/documents/${document.id}/file`,
+          ])));
+        } else {
+          setDocumentLinks({});
+        }
       })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load your latest conversation."));
   }, [location.key, newChatRequested, requestedChatId, navigate]);
@@ -235,6 +246,7 @@ export function ChatPage() {
     setSessionId("");
     setBaseId("");
     setMessages([]);
+    setDocumentLinks({});
     setQuestion("");
     setError("");
     setNotice("");
@@ -361,6 +373,7 @@ export function ChatPage() {
         for (const attachment of documentAttachments) {
           setNotice(`Uploading ${attachment.file.name}…`);
           const uploaded = await uploadDocument(activeKnowledgeBaseId, attachment.file);
+          setDocumentLinks((current) => ({ ...current, [uploaded.original_filename]: `/api/v1/knowledge-bases/${activeKnowledgeBaseId}/documents/${uploaded.id}/file` }));
           setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
           setIndexing(true);
           setNotice(`Preparing ${attachment.file.name}…`);
@@ -519,11 +532,11 @@ export function ChatPage() {
           onTouchEnd={clearMessageLongPress}
           onTouchMove={clearMessageLongPress}
           onTouchCancel={clearMessageLongPress}
-          className={`break-words ${message.role === "user" ? hasPhoto ? "ml-auto w-fit max-w-[min(90%,680px)]" : "ml-auto w-fit max-w-[85%] rounded-2xl bg-[#163a32] px-3 py-2 text-white sm:px-3.5 sm:py-2.5" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
-        {imageSrc && <img src={imageSrc} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" />}
-        {message.role === "user" && !message.attachment_url && message.attachment_filename && <div className="mb-3 flex max-w-full flex-wrap gap-2">{message.attachment_filename.split("\n").filter(Boolean).map((filename, index) => <div key={`${message.id}-${index}`} className="flex max-w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white"><FileText className="size-4 shrink-0" /><span className="max-w-64 truncate">{filename}</span></div>)}</div>}
-        {isEditing ? <div className="min-w-[min(70vw,20rem)] space-y-2"><textarea autoFocus value={editDraft} onChange={(event) => setEditDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setEditingMessageId(""); setEditDraft(""); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveEditedMessage(message); } }} className="w-full resize-y rounded-lg border border-white/20 bg-black/10 px-2 py-1.5 text-[15px] leading-6 text-white outline-none focus-visible:outline-none" rows={Math.min(6, Math.max(2, editDraft.split("\n").length))} /><div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditingMessageId(""); setEditDraft(""); }} className="rounded-lg px-2.5 py-1 text-xs text-white/80 hover:bg-white/10">Cancel</button><button type="button" disabled={!editDraft.trim() || sending} onClick={() => void saveEditedMessage(message)} className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-[#163a32] disabled:opacity-50">{sending ? "Saving…" : "Save"}</button></div></div>
-          : message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-[#163a32] px-3 py-2 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
+          className={`break-words ${message.role === "user" ? hasPhoto ? "ml-auto w-fit max-w-[min(90%,680px)]" : "ml-auto w-fit max-w-[85%] rounded-2xl bg-blue-600 px-3 py-2 text-white sm:px-3.5 sm:py-2.5" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
+        {imageSrc && <button type="button" onClick={() => setPreviewImage(imageSrc)} aria-label="Open sent image" className="block max-w-full cursor-zoom-in rounded-xl focus-visible:outline-none"><img src={imageSrc} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" /></button>}
+        {message.role === "user" && !message.attachment_url && message.attachment_filename && <div className="mb-1 flex max-w-full flex-wrap gap-2">{message.attachment_filename.split("\n").filter(Boolean).map((filename, index) => <div key={`${message.id}-${index}`} className="flex max-w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white"><FileText className="size-4 shrink-0" />{documentLinks[filename] ? <a href={documentLinks[filename]} target="_blank" rel="noreferrer" className="max-w-64 truncate underline-offset-2 hover:underline">{filename}</a> : <span className="max-w-64 truncate">{filename}</span>}</div>)}</div>}
+        {isEditing ? <div className="min-w-[min(70vw,20rem)] space-y-2"><textarea autoFocus value={editDraft} onChange={(event) => setEditDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setEditingMessageId(""); setEditDraft(""); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveEditedMessage(message); } }} className="w-full resize-none rounded-lg border border-white/20 bg-black/10 px-2 py-1.5 text-[15px] leading-6 text-white outline-none focus-visible:outline-none" rows={Math.min(6, Math.max(2, editDraft.split("\n").length))} /><div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditingMessageId(""); setEditDraft(""); }} className="rounded-lg px-2.5 py-1 text-xs text-white/80 hover:bg-white/10">Cancel</button><button type="button" disabled={!editDraft.trim() || sending} onClick={() => void saveEditedMessage(message)} className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 disabled:opacity-50">{sending ? "Saving…" : "Save"}</button></div></div>
+          : message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-blue-600 px-3 py-2 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
         {message.role === "assistant" && <div className="flex items-center"><VoiceSpeakerButton text={message.content} /></div>}
         {messageMenu?.id === message.id && createPortal(<div ref={messageMenuRef} style={{ position: "fixed", top: messageMenu.top, left: messageMenu.left }} className="z-[110] min-w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
@@ -558,6 +571,7 @@ export function ChatPage() {
       </div>
     </form>
     {(uploading || indexing) && <p role="status" className="text-sm text-slate-500">{uploading ? "Uploading your file…" : "Indexing your file… You can start chatting when it is ready."}</p>}
+    {previewImage && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-4" onClick={(event) => { if (event.target === event.currentTarget) setPreviewImage(""); }}><button type="button" onClick={() => setPreviewImage("")} aria-label="Close image preview" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><X className="size-5" /></button><img src={previewImage} alt="Full size sent attachment" className="max-h-[92vh] max-w-[94vw] object-contain" /></div>}
   </div>;
 }
 
@@ -566,6 +580,7 @@ export function SharedChatPage() {
   const token = searchParams.get("token") ?? "";
   const [sharedChat, setSharedChat] = useState<SharedChat | null>(null);
   const [error, setError] = useState("");
+  const [previewImage, setPreviewImage] = useState("");
   useEffect(() => {
     let active = true;
     if (!token) { setError("This share link is missing its token."); return () => { active = false; }; }
@@ -574,7 +589,30 @@ export function SharedChatPage() {
   }, [token]);
 
   return <main className="h-[100dvh] min-h-screen overflow-y-auto overscroll-contain touch-pan-y bg-slate-50 px-4 py-8 pb-16 text-slate-900 dark:bg-[#11100f] dark:text-white sm:px-8">
-    <div className="mx-auto max-w-3xl"><a href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 dark:text-teal-300">✦ Cognitive RAG</a>{error ? <section className="surface mt-8 rounded-2xl p-6"><h1 className="text-xl font-semibold">Shared chat unavailable</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{error}</p></section> : !sharedChat ? <p className="mt-10 text-sm text-slate-500">Loading shared conversation…</p> : <><h1 className="mt-8 text-2xl font-bold sm:text-3xl">{sharedChat.title}</h1><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Read-only shared conversation</p><section className="mt-8 space-y-7">{sharedChat.messages.map((message, index) => <article key={`${message.created_at}-${index}`} className={message.role === "user" ? message.attachment_url ? "ml-auto w-fit max-w-[90%]" : "ml-auto w-fit max-w-[88%] rounded-2xl bg-[#163a32] px-4 py-3 text-white" : "mr-auto w-full py-1 text-slate-900 dark:text-white"}><p className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">{message.role === "user" ? "User" : "Cognitive RAG"}</p>{message.attachment_url && <img src={message.attachment_url} alt={message.attachment_filename || "Image shared in this conversation"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" />}{message.attachment_filename && !message.attachment_url && <p className="mb-2 text-xs opacity-70">Attachment: {message.attachment_filename}</p>}{message.content && (message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className={`${message.attachment_url ? "mt-2 w-fit rounded-xl bg-[#163a32] px-3 py-2.5 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.content}</p>)}{message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}</article>)}</section></>}</div>
+    <div className="mx-auto max-w-3xl">
+      <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 dark:text-teal-300">✦ Cognitive RAG</a>
+      {error ? <section className="surface mt-8 rounded-2xl p-6"><h1 className="text-xl font-semibold">Shared chat unavailable</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{error}</p></section>
+        : !sharedChat ? <p className="mt-10 text-sm text-slate-500">Loading shared conversation…</p>
+          : <>
+            <h1 className="mt-8 text-2xl font-bold sm:text-3xl">{sharedChat.title}</h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Read-only shared conversation</p>
+            <section className="mt-8 space-y-7">
+              {sharedChat.messages.map((message) => {
+                const imageUrl = message.attachment_url || (message.attachment_content_type?.startsWith("image/")
+                  ? `/api/v1/chat/shared/image?token=${encodeURIComponent(token)}&message_id=${encodeURIComponent(message.id)}`
+                  : "");
+                return <article key={message.id} className={message.role === "user" ? imageUrl ? "ml-auto w-fit max-w-[90%]" : "ml-auto w-fit max-w-[88%] rounded-2xl bg-blue-600 px-3 py-2.5 text-white" : "mr-auto w-full py-1 text-slate-900 dark:text-white"}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">{message.role === "user" ? "User" : "Cognitive RAG"}</p>
+                  {imageUrl && <button type="button" onClick={() => setPreviewImage(imageUrl)} aria-label="Open shared image" className="block max-w-full cursor-zoom-in rounded-xl focus-visible:outline-none"><img src={imageUrl} alt={message.attachment_filename || "Image shared in this conversation"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" /></button>}
+                  {message.attachment_filename && !imageUrl && <p className="mb-2 text-xs opacity-70">Attachment: {message.attachment_filename}</p>}
+                  {message.content && (message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className={`${imageUrl ? "mt-2 w-fit rounded-xl bg-blue-600 px-3 py-2 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.content}</p>)}
+                  {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
+                </article>;
+              })}
+            </section>
+          </>}
+    </div>
+    {previewImage && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-4" onClick={(event) => { if (event.target === event.currentTarget) setPreviewImage(""); }}><button type="button" onClick={() => setPreviewImage("")} aria-label="Close image preview" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><X className="size-5" /></button><img src={previewImage} alt="Full size shared attachment" className="max-h-[92vh] max-w-[94vw] object-contain" /></div>}
   </main>;
 }
 

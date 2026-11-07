@@ -149,11 +149,13 @@ def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
         "title": session.title,
         "messages": [
             {
+                "id": str(message.id),
                 "role": message.role,
                 "content": message.content,
                 "citations": [citation.model_dump(mode="json") for citation in decode_citations(message.citations)],
                 "created_at": message.created_at,
                 "attachment_filename": message.attachment_filename,
+                "attachment_content_type": message.attachment_content_type,
                 "attachment_url": (
                     f"/api/v1/chat/shared/image?token={token}&message_id={message.id}"
                     if message.attachment_content_type else None

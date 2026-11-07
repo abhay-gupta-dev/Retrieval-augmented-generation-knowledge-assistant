@@ -189,7 +189,7 @@ export function VoiceSpeakerButton({ text }: Readonly<VoiceSpeakerButtonProps>) 
     setState("speaking");
   }
 
-  return <button type="button" onClick={toggleSpeech} aria-label={state === "speaking" ? "Stop speaking" : "Read answer aloud"} title={state === "speaking" ? "Stop speaking" : "Read answer aloud"} className="inline-grid place-items-center rounded-lg p-1 text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700">
+  return <button type="button" onClick={toggleSpeech} aria-label={state === "speaking" ? "Stop speaking" : "Read answer aloud"} title={state === "speaking" ? "Stop speaking" : "Read answer aloud"} className="inline-grid place-items-center rounded-lg p-0 text-slate-500 dark:text-slate-400">
     <span aria-hidden="true">{state === "speaking" ? "■" : "🔊"}</span>
   </button>;
 }
