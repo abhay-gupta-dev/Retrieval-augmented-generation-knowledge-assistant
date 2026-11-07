@@ -266,9 +266,8 @@ export function ChatPage() {
     const attachments = [...pendingAttachments];
     const imageAttachments = attachments.filter((attachment) => attachment.file.type.startsWith("image/"));
     const documentAttachments = attachments.filter((attachment) => !attachment.file.type.startsWith("image/"));
-    const prompt = question.trim() || (imageAttachments.length
-      ? "Describe the attached image and explain its important details."
-      : documentAttachments.length ? "Please summarize the attached document." : "");
+    const prompt = question.trim();
+    const documentPrompt = prompt || "Please summarize the attached document.";
     if ((!prompt && attachments.length === 0) || sending) return;
 
     setSending(true);
@@ -370,7 +369,7 @@ export function ChatPage() {
       let streamedCitations: ChatMessage["citations"] = [];
       let userMessageAccepted = false;
       try {
-        await streamChatMessage(activeSessionId, prompt, documentAttachments.map((attachment) => attachment.file.name), {
+        await streamChatMessage(activeSessionId, documentPrompt, documentAttachments.map((attachment) => attachment.file.name), {
           onUserMessage: (message) => {
             userMessageAccepted = true;
             setQuestion("");
@@ -438,19 +437,23 @@ export function ChatPage() {
         <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{user?.provider === "guest" ? "Welcome to Cognitive RAG!" : `Welcome${user?.name ? `, ${user.name.trim().split(/\s+/)[0]}` : ""}!`}</h2>
         <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
       </div></div>}
-      {messages.map((message) => <article key={message.id} className={`break-words ${message.role === "user" ? "ml-auto w-fit max-w-[85%] rounded-2xl bg-[#163a32] px-3 py-2.5 text-white sm:px-4 sm:py-3" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
-        {message.role === "user" && (message.attachment_url || imagePreviews[message.id]) && <img src={message.attachment_url || imagePreviews[message.id]} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="mb-2 max-h-52 max-w-56 rounded-xl object-contain sm:max-h-60 sm:max-w-64" />}
+      {messages.map((message) => {
+        const imageSrc = message.role === "user" ? (message.attachment_url || imagePreviews[message.id]) : undefined;
+        const hasPhoto = Boolean(imageSrc);
+        return <article key={message.id} className={`break-words ${message.role === "user" ? hasPhoto ? "ml-auto w-fit max-w-[min(90%,680px)]" : "ml-auto w-fit max-w-[85%] rounded-2xl bg-[#163a32] px-3 py-2.5 text-white sm:px-4 sm:py-3" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
+        {imageSrc && <img src={imageSrc} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" />}
         {message.role === "user" && !message.attachment_url && message.attachment_filename && <div className="mb-3 flex max-w-full flex-wrap gap-2">{message.attachment_filename.split("\n").filter(Boolean).map((filename, index) => <div key={`${message.id}-${index}`} className="flex max-w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white"><FileText className="size-4 shrink-0" /><span className="max-w-64 truncate">{filename}</span></div>)}</div>}
-        {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.attachment_url ? message.content && <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
+        {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-[#163a32] px-3 py-2.5 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
-        <div className="mt-3 flex items-center gap-2">
+        {(message.role === "assistant" || message.content.trim() || !hasPhoto) && <div className={`${hasPhoto ? "mt-2" : "mt-3"} flex items-center gap-2`}>
           <button type="button" onClick={() => void copyMessage(message)} aria-label={copiedMessageId === message.id ? "Message copied" : "Copy message"} title={copiedMessageId === message.id ? "Copied" : "Copy"} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-current opacity-60 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10">
             {copiedMessageId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             {copiedMessageId === message.id ? "Copied" : "Copy"}
           </button>
           {message.role === "assistant" && <VoiceSpeakerButton text={message.content} />}
-        </div>
-      </article>)}
+        </div>}
+      </article>;
+      })}
       {sending && <div className="mr-auto flex items-center gap-2 rounded-2xl bg-[#eef6f1] px-5 py-4 text-sm text-slate-500 dark:bg-white/5"><span className="size-2 animate-pulse rounded-full bg-teal-600" /><span>Thinking…</span></div>}
       <div ref={bottomRef} />
     </section>

@@ -395,12 +395,12 @@ def send_image(
     if len(image_bytes) > settings.max_image_bytes:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Images must be 10 MB or smaller.")
 
-    question = prompt.strip()[:4000] or "Describe this image and explain its important details."
-    user_content = question
+    visible_prompt = prompt.strip()[:4000]
+    question = visible_prompt or "Describe this image and explain its important details."
     user_message = ChatMessage(
         session_id=session.id,
         role="user",
-        content=user_content,
+        content=visible_prompt,
         attachment_data=image_bytes if document is None else None,
         attachment_document_id=document.id if document else None,
         attachment_content_type=image_content_type,
