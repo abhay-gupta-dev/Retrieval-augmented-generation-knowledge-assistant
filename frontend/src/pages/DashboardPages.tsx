@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Copy, FileText, Image as ImageIcon, Plus, Trash2, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Copy, FileText, Image as ImageIcon, PencilLine, Plus, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
@@ -11,7 +12,7 @@ type PendingAttachment = {
   file: File;
   previewUrl?: string;
 };
-import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
+import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, editChatMessage, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -150,16 +151,39 @@ export function ChatPage() {
   const [uploading, setUploading] = useState(false);
   const [indexing, setIndexing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState("");
+  const [messageMenu, setMessageMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState("");
+  const [editDraft, setEditDraft] = useState("");
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const imagePreviewUrls = useRef<string[]>([]);
   const openedSavedChatRef = useRef("");
+  const messageLongPressTimer = useRef<number | null>(null);
+  const activeMessageRef = useRef<HTMLElement | null>(null);
+  const messageMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => () => {
     imagePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
+
+  useEffect(() => () => clearMessageLongPress(), []);
+
+  useEffect(() => {
+    if (!messageMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!activeMessageRef.current?.contains(target) && !messageMenuRef.current?.contains(target)) setMessageMenu(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMessageMenu(null); };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [messageMenu]);
 
   useEffect(() => {
     let hasSavedChatIntent = false;
@@ -255,9 +279,50 @@ export function ChatPage() {
     try {
       await navigator.clipboard.writeText(message.content);
       setCopiedMessageId(message.id);
-      window.setTimeout(() => setCopiedMessageId((current) => current === message.id ? "" : current), 1800);
+      window.setTimeout(() => {
+        setCopiedMessageId((current) => current === message.id ? "" : current);
+        setMessageMenu((current) => current?.id === message.id ? null : current);
+      }, 1000);
     } catch {
       setError("Could not copy this message. Check your browser clipboard permissions.");
+    }
+  }
+
+  function clearMessageLongPress() {
+    if (messageLongPressTimer.current !== null) window.clearTimeout(messageLongPressTimer.current);
+    messageLongPressTimer.current = null;
+  }
+
+  function openMessageMenu(message: ChatMessage, row: HTMLElement) {
+    if (editingMessageId === message.id || (!message.content.trim() && message.attachment_url)) return;
+    const rect = row.getBoundingClientRect();
+    const width = 152;
+    const canEdit = message.role === "user" && message.content.trim() && !message.attachment_url && !message.attachment_filename;
+    const height = canEdit ? 84 : 44;
+    const top = window.innerHeight - rect.bottom < height + 12 ? Math.max(8, rect.top - height - 6) : Math.min(window.innerHeight - height - 8, rect.bottom + 6);
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+    setMessageMenu({ id: message.id, top, left });
+  }
+
+  async function saveEditedMessage(message: ChatMessage) {
+    if (!sessionId || !editDraft.trim() || sending) return;
+    const targetIndex = messages.findIndex((item) => item.id === message.id);
+    if (targetIndex < 0) return;
+    setSending(true);
+    setError("");
+    try {
+      const updatedMessage = await editChatMessage(sessionId, message.id, editDraft.trim());
+      const retainedMessages = [...messages.slice(0, targetIndex), updatedMessage];
+      setMessages(retainedMessages);
+      const reply = await retryMessage(sessionId);
+      setMessages([...retainedMessages, reply.assistant_message]);
+      setEditingMessageId("");
+      setEditDraft("");
+      notifyChatHistoryChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not update this message.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -440,18 +505,31 @@ export function ChatPage() {
       {messages.map((message) => {
         const imageSrc = message.role === "user" ? (message.attachment_url || imagePreviews[message.id]) : undefined;
         const hasPhoto = Boolean(imageSrc);
-        return <article key={message.id} className={`break-words ${message.role === "user" ? hasPhoto ? "ml-auto w-fit max-w-[min(90%,680px)]" : "ml-auto w-fit max-w-[85%] rounded-2xl bg-[#163a32] px-3 py-2.5 text-white sm:px-4 sm:py-3" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
+        const isEditing = editingMessageId === message.id;
+        return <article
+          key={message.id}
+          ref={messageMenu?.id === message.id ? activeMessageRef : null}
+          onDoubleClick={(event) => openMessageMenu(message, event.currentTarget)}
+          onContextMenu={(event) => { event.preventDefault(); openMessageMenu(message, event.currentTarget); }}
+          onTouchStart={(event) => {
+            const row = event.currentTarget;
+            clearMessageLongPress();
+            messageLongPressTimer.current = window.setTimeout(() => openMessageMenu(message, row), 550);
+          }}
+          onTouchEnd={clearMessageLongPress}
+          onTouchMove={clearMessageLongPress}
+          onTouchCancel={clearMessageLongPress}
+          className={`break-words ${message.role === "user" ? hasPhoto ? "ml-auto w-fit max-w-[min(90%,680px)]" : "ml-auto w-fit max-w-[85%] rounded-2xl bg-[#163a32] px-3 py-2 text-white sm:px-3.5 sm:py-2.5" : "mr-auto w-full max-w-full py-1 text-slate-900 dark:text-white"}`}>
         {imageSrc && <img src={imageSrc} alt={message.attachment_filename ? `Image attached: ${message.attachment_filename}` : "Image attached to this message"} className="block h-auto w-auto max-h-[65vh] max-w-[min(72vw,640px)] rounded-xl object-contain" />}
         {message.role === "user" && !message.attachment_url && message.attachment_filename && <div className="mb-3 flex max-w-full flex-wrap gap-2">{message.attachment_filename.split("\n").filter(Boolean).map((filename, index) => <div key={`${message.id}-${index}`} className="flex max-w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white"><FileText className="size-4 shrink-0" /><span className="max-w-64 truncate">{filename}</span></div>)}</div>}
-        {message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-[#163a32] px-3 py-2.5 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
+        {isEditing ? <div className="min-w-[min(70vw,20rem)] space-y-2"><textarea autoFocus value={editDraft} onChange={(event) => setEditDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setEditingMessageId(""); setEditDraft(""); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveEditedMessage(message); } }} className="w-full resize-y rounded-lg border border-white/20 bg-black/10 px-2 py-1.5 text-[15px] leading-6 text-white outline-none focus-visible:outline-none" rows={Math.min(6, Math.max(2, editDraft.split("\n").length))} /><div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditingMessageId(""); setEditDraft(""); }} className="rounded-lg px-2.5 py-1 text-xs text-white/80 hover:bg-white/10">Cancel</button><button type="button" disabled={!editDraft.trim() || sending} onClick={() => void saveEditedMessage(message)} className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-[#163a32] disabled:opacity-50">{sending ? "Saving…" : "Save"}</button></div></div>
+          : message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-[#163a32] px-3 py-2 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
-        {(message.role === "assistant" || message.content.trim() || !hasPhoto) && <div className={`${hasPhoto ? "mt-2" : "mt-3"} flex items-center gap-2`}>
-          <button type="button" onClick={() => void copyMessage(message)} aria-label={copiedMessageId === message.id ? "Message copied" : "Copy message"} title={copiedMessageId === message.id ? "Copied" : "Copy"} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-current opacity-60 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10">
-            {copiedMessageId === message.id ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            {copiedMessageId === message.id ? "Copied" : "Copy"}
-          </button>
-          {message.role === "assistant" && <VoiceSpeakerButton text={message.content} />}
-        </div>}
+        {message.role === "assistant" && <div className="flex items-center"><VoiceSpeakerButton text={message.content} /></div>}
+        {messageMenu?.id === message.id && createPortal(<div ref={messageMenuRef} style={{ position: "fixed", top: messageMenu.top, left: messageMenu.left }} className="z-[110] min-w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+          {message.content.trim() && <button type="button" onClick={() => void copyMessage(message)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><Copy className="size-4" />{copiedMessageId === message.id ? "Copied" : "Copy"}</button>}
+          {message.role === "user" && message.content.trim() && !message.attachment_url && !message.attachment_filename && !imagePreviews[message.id] && <button type="button" onClick={() => { setEditDraft(message.content); setEditingMessageId(message.id); setMessageMenu(null); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><PencilLine className="size-4" />Edit message</button>}
+        </div>, document.body)}
       </article>;
       })}
       {sending && <div className="mr-auto flex items-center gap-2 rounded-2xl bg-[#eef6f1] px-5 py-4 text-sm text-slate-500 dark:bg-white/5"><span className="size-2 animate-pulse rounded-full bg-teal-600" /><span>Thinking…</span></div>}

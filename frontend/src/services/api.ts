@@ -405,6 +405,12 @@ export const sendMessage = (
     body: JSON.stringify({ content }),
   });
 
+export const editChatMessage = (sessionId: string, messageId: string, content: string) =>
+  request<ChatMessage>(`/api/v1/chat/${sessionId}/messages/${messageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ content }),
+  });
+
 export const sendImage = (sessionId: string, prompt: string, documentId: string) => {
   const form = new FormData();
   form.append("prompt", prompt);

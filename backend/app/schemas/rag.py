@@ -77,6 +77,10 @@ class MessageCreate(BaseModel):
     attachment_filenames: list[str] = Field(default_factory=list, max_length=8)
 
 
+class MessageUpdate(BaseModel):
+    content: str = Field(min_length=1, max_length=12000)
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

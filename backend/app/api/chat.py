@@ -24,6 +24,7 @@ from app.schemas.rag import (
     ChatSessionUpdate,
     MessageCreate,
     MessageResponse,
+    MessageUpdate,
 )
 from app.services.rag_service import (
     answer_question,
@@ -293,6 +294,35 @@ def list_messages(
         select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc())
     ))
     return [message_response(m) for m in messages]
+
+
+@router.patch("/{session_id}/messages/{message_id}", response_model=MessageResponse)
+def edit_user_message(
+    session_id: UUID,
+    message_id: UUID,
+    payload: MessageUpdate,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> MessageResponse:
+    """Edit a user message and discard later turns so a fresh answer can be generated."""
+    session = owned_session(database, user, session_id)
+    messages = list(database.scalars(
+        select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc())
+    ))
+    target_index = next((index for index, item in enumerate(messages) if item.id == message_id), -1)
+    if target_index < 0 or messages[target_index].role != "user":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User message not found.")
+    message = messages[target_index]
+    if message.attachment_content_type:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Photo messages cannot be edited.")
+
+    message.content = payload.content.strip()
+    for later_message in messages[target_index + 1:]:
+        database.delete(later_message)
+    session.updated_at = func.now()
+    database.commit()
+    database.refresh(message)
+    return message_response(message)
 
 
 @router.get("/{session_id}/messages/{message_id}/image")
