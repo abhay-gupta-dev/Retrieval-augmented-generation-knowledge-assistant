@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Files, House, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Trash2, UserRound, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -62,6 +63,8 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
   const longPressTimer = useRef<number | null>(null);
   const suppressClick = useRef(false);
   const activeMenuRef = useRef<HTMLDivElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   function clearLongPressTimer() {
     if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
@@ -86,7 +89,8 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
   useEffect(() => {
     if (!menuChatId) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!activeMenuRef.current?.contains(event.target as Node)) setMenuChatId("");
+      const target = event.target as Node;
+      if (!activeMenuRef.current?.contains(target) && !menuPanelRef.current?.contains(target)) setMenuChatId("");
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMenuChatId("");
@@ -98,6 +102,31 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
     return () => {
       document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
       document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuChatId]);
+
+  useEffect(() => {
+    if (!menuChatId) {
+      setMenuPosition(null);
+      return;
+    }
+    const updateMenuPosition = () => {
+      const row = activeMenuRef.current;
+      if (!row) return;
+      const bounds = row.getBoundingClientRect();
+      const menuHeight = 76;
+      const openAbove = window.innerHeight - bounds.bottom < menuHeight + 8;
+      setMenuPosition({
+        top: openAbove ? Math.max(8, bounds.top - menuHeight - 4) : bounds.bottom + 4,
+        left: Math.max(8, Math.min(window.innerWidth - 136, bounds.right - 132)),
+      });
+    };
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [menuChatId]);
 
@@ -166,10 +195,10 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={() => setMenuChatId((current) => current === chat.id ? "" : chat.id)}
                 className="absolute right-1 grid size-8 place-items-center rounded-lg text-slate-500 opacity-100 hover:bg-slate-200 hover:text-slate-900 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
               ><MoreHorizontal className="size-4" /></button>
-              {menuChatId === chat.id && <div className={`absolute right-1 z-40 w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900 ${index === chats.length - 1 ? "bottom-full mb-1" : "top-full mt-1"}`}>
+              {menuChatId === chat.id && menuPosition && createPortal(<div ref={menuPanelRef} style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left }} className="z-[100] w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                 <button type="button" disabled={deletingChatId === chat.id} onClick={() => void removeChat(chat)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:hover:bg-rose-950/30"><Trash2 className="size-3.5" />Delete chat</button>
                 <button type="button" onClick={() => setMenuChatId("")} className="mt-0.5 flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">Cancel</button>
-              </div>}
+              </div>, document.body)}
             </div>
           ))}
         </div>
