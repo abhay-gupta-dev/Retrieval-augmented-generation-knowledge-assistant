@@ -10,6 +10,10 @@
       "destination": "https://retrieval-augmented-generation-knowledge.onrender.com/health"
     },
     {
+      "source": "/shared",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

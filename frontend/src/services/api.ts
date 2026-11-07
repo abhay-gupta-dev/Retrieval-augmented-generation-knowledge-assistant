@@ -377,7 +377,7 @@ export const createChatShare = (sessionId: string) =>
   request<{ token: string }>(`/api/v1/chat/${sessionId}/share`, { method: "POST" });
 
 export const getSharedChat = (token: string) =>
-  request<SharedChat>(`/api/v1/chat/shared/${encodeURIComponent(token)}`);
+  request<SharedChat>(`/api/v1/chat/shared?token=${encodeURIComponent(token)}`);
 
 export const clearAllChats = () =>
   request<void>("/api/v1/chat", {

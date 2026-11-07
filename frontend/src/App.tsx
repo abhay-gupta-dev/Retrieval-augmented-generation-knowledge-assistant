@@ -10,7 +10,7 @@ export default function App() {
     <Route path="/" element={<Navigate to="/chat" replace />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/account" element={<LoginPage allowAuthenticated />} />
-    <Route path="/shared/:token" element={<SharedChatPage />} />
+    <Route path="/shared" element={<SharedChatPage />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />

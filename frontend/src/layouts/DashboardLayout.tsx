@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Files, House, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Trash2, UserRound, X } from "lucide-react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ExternalLink, Files, House, Link2, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Share2, Trash2, UserRound, X } from "lucide-react";
+import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
 import { ProfileMenu } from "../components/ProfileMenu";
 import { useAuth } from "../context/AuthContext";
-import { deleteChat, listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
+import { createChatShare, deleteChat, listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
 const links = [
   { to: "/dashboard", label: "Overview", Icon: House },
@@ -211,7 +211,12 @@ export function DashboardLayout() {
   const { isGuest } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareError, setShareError] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const activeChatId = location.pathname === "/chat" ? searchParams.get("chat") : null;
   const [sidebarVisible, setSidebarVisible] = useState(
     () => window.localStorage.getItem("knowledge-platform:sidebar-hidden") !== "true"
   );
@@ -219,6 +224,29 @@ export function DashboardLayout() {
   useEffect(() => {
     window.localStorage.setItem("knowledge-platform:sidebar-hidden", String(!sidebarVisible));
   }, [sidebarVisible]);
+
+  async function prepareChatShare() {
+    if (!activeChatId || sharing) return;
+    setSharing(true);
+    setShareError("");
+    try {
+      const { token } = await createChatShare(activeChatId);
+      setShareUrl(`${window.location.origin}/shared?token=${encodeURIComponent(token)}`);
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : "Could not create the share link.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function copyChatShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareError("Link copied. Anyone with it can read this conversation.");
+    } catch {
+      setShareError("Copy failed. Select the link and copy it manually.");
+    }
+  }
 
   return (
     <main className="app-shell flex h-[100dvh] min-h-[100svh] overflow-hidden">
@@ -299,6 +327,7 @@ export function DashboardLayout() {
               className="hidden rounded-lg p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 md:inline-flex"
             ><PanelLeftClose className="size-5" /></button>}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
+              {activeChatId && <button type="button" onClick={() => void prepareChatShare()} disabled={sharing} aria-label="Share this chat" title="Share this chat" className="grid size-10 place-items-center rounded-xl text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-white/10"><Share2 className="size-5" /></button>}
               <div className="md:hidden"><ProfileMenu align="right" /></div>
             </div>
           </div>
@@ -307,6 +336,15 @@ export function DashboardLayout() {
           <Outlet />
         </section>
       </section>
+      {shareError && !shareUrl && <div role="alert" className="fixed bottom-5 right-5 z-[130] max-w-sm rounded-xl bg-rose-100 px-4 py-3 text-sm text-rose-800 shadow-xl dark:bg-rose-950 dark:text-rose-100">{shareError}</div>}
+      {shareUrl && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) { setShareUrl(""); setShareError(""); } }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="share-chat-title" className="surface w-full max-w-md rounded-2xl p-5 shadow-2xl">
+          <div className="flex items-start justify-between gap-4"><div><h2 id="share-chat-title" className="text-lg font-semibold text-slate-900 dark:text-white">Share this chat</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Anyone with the link can read this conversation. Uploaded file contents remain private.</p></div><button type="button" onClick={() => { setShareUrl(""); setShareError(""); }} aria-label="Close share dialog" className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-4" /></button></div>
+          <div className="mt-4 flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-black/20"><Link2 className="size-4 shrink-0 text-slate-500" /><input readOnly value={shareUrl} aria-label="Chat share link" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200" /><button type="button" onClick={() => void copyChatShareLink()} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800">Copy</button></div>
+          {shareError && <p role="status" className="mt-2 text-xs text-teal-700 dark:text-teal-300">{shareError}</p>}
+          <div className="mt-4 flex flex-wrap gap-2"><a href={`https://wa.me/?text=${encodeURIComponent(`${document.title}: ${shareUrl}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#25d366] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1fb95a]">WhatsApp <ExternalLink className="size-3.5" /></a>{typeof navigator.share === "function" && <button type="button" onClick={() => void navigator.share({ title: "Shared chat", url: shareUrl })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-white/5"><Share2 className="size-4" />More options</button>}</div>
+        </section>
+      </div>}
     </main>
   );
 }

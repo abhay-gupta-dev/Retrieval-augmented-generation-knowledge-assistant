@@ -122,6 +122,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline-offset: 1px;
 }
 
+.chat-composer textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

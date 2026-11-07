@@ -155,7 +155,7 @@ def create_chat_share(
     return {"token": token}
 
 
-@router.get("/shared/{token}")
+@router.get("/shared")
 def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
     """Return a read-only conversation for a valid, time-limited share link."""
     try:
