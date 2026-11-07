@@ -126,35 +126,6 @@ def create_chat(
     return session_to_response(session, kb_name, 0)
 
 
-@router.get("/{session_id}", response_model=ChatSessionResponse)
-def get_chat(
-    session_id: UUID,
-    user: User = Depends(get_current_user),
-    database: Session = Depends(get_db),
-) -> ChatSessionResponse:
-    """Retrieve details for a specific chat session."""
-    session = owned_session(database, user, session_id)
-    kb_name = None
-    if session.knowledge_base_id:
-        kb = database.get(KnowledgeBase, session.knowledge_base_id)
-        if kb:
-            kb_name = kb.name
-    msg_count = database.scalar(select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session.id)) or 0
-    return session_to_response(session, kb_name, msg_count)
-
-
-@router.post("/{session_id}/share")
-def create_chat_share(
-    session_id: UUID,
-    user: User = Depends(get_current_user),
-    database: Session = Depends(get_db),
-) -> dict[str, str]:
-    """Create a signed, read-only bearer link for a conversation."""
-    owned_session(database, user, session_id)
-    token = share_serializer().dumps(str(session_id))
-    return {"token": token}
-
-
 @router.get("/shared")
 def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
     """Return a read-only conversation for a valid, time-limited share link."""
@@ -182,6 +153,35 @@ def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
             for message in messages
         ],
     }
+
+
+@router.get("/{session_id}", response_model=ChatSessionResponse)
+def get_chat(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> ChatSessionResponse:
+    """Retrieve details for a specific chat session."""
+    session = owned_session(database, user, session_id)
+    kb_name = None
+    if session.knowledge_base_id:
+        kb = database.get(KnowledgeBase, session.knowledge_base_id)
+        if kb:
+            kb_name = kb.name
+    msg_count = database.scalar(select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session.id)) or 0
+    return session_to_response(session, kb_name, msg_count)
+
+
+@router.post("/{session_id}/share")
+def create_chat_share(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Create a signed, read-only bearer link for a conversation."""
+    owned_session(database, user, session_id)
+    token = share_serializer().dumps(str(session_id))
+    return {"token": token}
 
 
 @router.patch("/{session_id}", response_model=ChatSessionResponse)

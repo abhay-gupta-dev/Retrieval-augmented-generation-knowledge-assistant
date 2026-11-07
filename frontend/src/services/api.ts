@@ -202,9 +202,12 @@ export async function request<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const error = new Error(
-      body.detail ?? `Request failed with status ${response.status}`
-    ) as Error & { status: number };
+    const detail = typeof body.detail === "string"
+      ? body.detail
+      : Array.isArray(body.detail)
+        ? body.detail.map((item: { msg?: string; loc?: (string | number)[] }) => item.msg || item.loc?.join(".") || "Invalid request").join("; ")
+        : `Request failed with status ${response.status}`;
+    const error = new Error(detail) as Error & { status: number };
     error.status = response.status;
     throw error;
   }
