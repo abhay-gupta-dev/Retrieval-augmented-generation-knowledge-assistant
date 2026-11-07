@@ -320,18 +320,26 @@ export function ChatPage() {
     if (!sessionId || !editDraft.trim() || sending) return;
     const targetIndex = messages.findIndex((item) => item.id === message.id);
     if (targetIndex < 0) return;
+    const originalMessages = messages;
+    const editedContent = editDraft.trim();
+    const optimisticMessage = { ...message, content: editedContent };
+    const optimisticMessages = [...messages.slice(0, targetIndex), optimisticMessage];
+    setMessages(optimisticMessages);
+    setEditingMessageId("");
+    setEditDraft("");
     setSending(true);
     setError("");
+    let editPersisted = false;
     try {
-      const updatedMessage = await editChatMessage(sessionId, message.id, editDraft.trim());
-      const retainedMessages = [...messages.slice(0, targetIndex), updatedMessage];
+      const updatedMessage = await editChatMessage(sessionId, message.id, editedContent);
+      editPersisted = true;
+      const retainedMessages = [...originalMessages.slice(0, targetIndex), updatedMessage];
       setMessages(retainedMessages);
       const reply = await retryMessage(sessionId);
       setMessages([...retainedMessages, reply.assistant_message]);
-      setEditingMessageId("");
-      setEditDraft("");
       notifyChatHistoryChanged();
     } catch (cause) {
+      if (!editPersisted) setMessages(originalMessages);
       setError(cause instanceof Error ? cause.message : "Could not update this message.");
     } finally {
       setSending(false);
@@ -538,9 +546,9 @@ export function ChatPage() {
         {isEditing ? <div className="min-w-[min(70vw,20rem)] space-y-2"><textarea autoFocus value={editDraft} onChange={(event) => setEditDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setEditingMessageId(""); setEditDraft(""); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void saveEditedMessage(message); } }} style={{ resize: "none" }} className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-[15px] leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white" rows={Math.min(6, Math.max(2, editDraft.split("\n").length))} /><div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditingMessageId(""); setEditDraft(""); }} className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">Cancel</button><button type="button" disabled={!editDraft.trim() || sending} onClick={() => void saveEditedMessage(message)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{sending ? "Sending…" : "Send"}</button></div></div>
           : message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content && <p className={`${hasPhoto ? "mt-2 w-fit rounded-xl bg-blue-600 px-3 py-2 text-white" : ""} whitespace-pre-wrap text-[15px] leading-7`}>{message.attachment_url ? message.content : message.content.replace(/^\[Image attached: [^\]]+\]\s*/, "")}</p>}
         {message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}
-        {message.role === "assistant" && <div className="flex items-center"><VoiceSpeakerButton text={message.content} /></div>}
+        {message.role === "assistant" && <div className="mt-2 flex items-center gap-2"><VoiceSpeakerButton text={message.content} /><button type="button" onClick={() => void copyMessage(message)} aria-label={copiedMessageId === message.id ? "Answer copied" : "Copy answer"} title={copiedMessageId === message.id ? "Copied" : "Copy answer"} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"><Copy className="size-3.5" />{copiedMessageId === message.id ? "Copied" : "Copy"}</button></div>}
         {messageMenu?.id === message.id && createPortal(<div ref={messageMenuRef} style={{ position: "fixed", top: messageMenu.top, left: messageMenu.left }} className="z-[110] min-w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-          {message.content.trim() && <button type="button" onClick={() => void copyMessage(message)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><Copy className="size-4" />{copiedMessageId === message.id ? "Copied" : "Copy"}</button>}
+          {message.role === "assistant" && message.content.trim() && <button type="button" onClick={() => void copyMessage(message)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><Copy className="size-4" />{copiedMessageId === message.id ? "Copied" : "Copy"}</button>}
           {message.role === "user" && message.content.trim() && !message.attachment_url && !message.attachment_filename && !imagePreviews[message.id] && <button type="button" onClick={() => { setEditDraft(message.content); setEditingMessageId(message.id); setMessageMenu(null); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><PencilLine className="size-4" />Edit message</button>}
         </div>, document.body)}
       </article>;
