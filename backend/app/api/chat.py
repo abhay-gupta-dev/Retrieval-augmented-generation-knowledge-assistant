@@ -54,6 +54,17 @@ def share_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(secret, salt="cognitive-rag-chat-share-v1")
 
 
+def shared_session(token: str, database: Session) -> ChatSession:
+    try:
+        session_id = UUID(share_serializer().loads(token, max_age=60 * 60 * 24 * 365))
+    except (BadSignature, SignatureExpired, ValueError, TypeError) as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This share link is invalid or has expired.") from error
+    session = database.get(ChatSession, session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This shared conversation is no longer available.")
+    return session
+
+
 def message_response(message: ChatMessage) -> MessageResponse:
     return MessageResponse(
         id=message.id,
@@ -129,14 +140,7 @@ def create_chat(
 @router.get("/shared")
 def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
     """Return a read-only conversation for a valid, time-limited share link."""
-    try:
-        session_id = UUID(share_serializer().loads(token, max_age=60 * 60 * 24 * 365))
-    except (BadSignature, SignatureExpired, ValueError, TypeError) as error:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This share link is invalid or has expired.") from error
-
-    session = database.get(ChatSession, session_id)
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This shared conversation is no longer available.")
+    session = shared_session(token, database)
     messages = database.scalars(
         select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc())
     )
@@ -149,10 +153,54 @@ def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
                 "citations": [citation.model_dump(mode="json") for citation in decode_citations(message.citations)],
                 "created_at": message.created_at,
                 "attachment_filename": message.attachment_filename,
+                "attachment_url": (
+                    f"/api/v1/chat/shared/image?token={token}&message_id={message.id}"
+                    if message.attachment_content_type else None
+                ),
             }
             for message in messages
         ],
     }
+
+
+@router.get("/shared/image")
+def get_shared_chat_image(
+    token: str,
+    message_id: UUID,
+    database: Session = Depends(get_db),
+) -> Response:
+    """Return an image belonging to the shared conversation identified by token."""
+    session = shared_session(token, database)
+    message = database.scalar(
+        select(ChatMessage)
+        .options(undefer(ChatMessage.attachment_data))
+        .where(ChatMessage.id == message_id, ChatMessage.session_id == session.id)
+    )
+    if not message or not message.attachment_content_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
+
+    image_bytes = message.attachment_data
+    if message.attachment_document_id:
+        document = database.scalar(
+            select(Document)
+            .options(undefer(Document.file_data))
+            .where(
+                Document.id == message.attachment_document_id,
+                Document.knowledge_base_id == session.knowledge_base_id,
+            )
+        )
+        if document:
+            image_bytes = document.file_data
+            if image_bytes is None:
+                path = storage_path(document.storage_key)
+                image_bytes = path.read_bytes() if path.is_file() else None
+    if not image_bytes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image attachment not found.")
+    return Response(
+        content=image_bytes,
+        media_type=message.attachment_content_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.get("/{session_id}", response_model=ChatSessionResponse)

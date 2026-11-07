@@ -54,7 +54,7 @@ export type ChatMessage = {
 
 export type SharedChat = {
   title: string;
-  messages: Array<Pick<ChatMessage, "role" | "content" | "citations" | "created_at" | "attachment_filename">>;
+  messages: Array<Pick<ChatMessage, "role" | "content" | "citations" | "created_at" | "attachment_filename" | "attachment_url">>;
 };
 
 export type RecentDocumentItem = {
