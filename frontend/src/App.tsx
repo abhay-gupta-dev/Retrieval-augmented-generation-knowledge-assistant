@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { DashboardLayout } from "./layouts/DashboardLayout";
-import { ChatPage, DashboardPage, DocumentsPage, ProfilePage, SettingsPage } from "./pages/DashboardPages";
+import { ChatPage, DashboardPage, DocumentsPage, ProfilePage, SettingsPage, SharedChatPage } from "./pages/DashboardPages";
 import { LoginPage } from "./pages/LoginPage";
 
 export default function App() {
@@ -10,6 +10,7 @@ export default function App() {
     <Route path="/" element={<Navigate to="/chat" replace />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/account" element={<LoginPage allowAuthenticated />} />
+    <Route path="/shared/:token" element={<SharedChatPage />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />

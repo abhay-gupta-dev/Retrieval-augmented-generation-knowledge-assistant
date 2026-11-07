@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
 from groq import APIError, Groq
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, undefer
 
@@ -43,6 +44,14 @@ def owned_session(database: Session, user: User, session_id: UUID) -> ChatSessio
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
     return session
+
+
+def share_serializer() -> URLSafeTimedSerializer:
+    settings = get_settings()
+    secret = settings.jwt_secret_key or settings.session_secret_key
+    if not secret:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Chat sharing is not configured.")
+    return URLSafeTimedSerializer(secret, salt="cognitive-rag-chat-share-v1")
 
 
 def message_response(message: ChatMessage) -> MessageResponse:
@@ -132,6 +141,47 @@ def get_chat(
             kb_name = kb.name
     msg_count = database.scalar(select(func.count(ChatMessage.id)).where(ChatMessage.session_id == session.id)) or 0
     return session_to_response(session, kb_name, msg_count)
+
+
+@router.post("/{session_id}/share")
+def create_chat_share(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    database: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Create a signed, read-only bearer link for a conversation."""
+    owned_session(database, user, session_id)
+    token = share_serializer().dumps(str(session_id))
+    return {"token": token}
+
+
+@router.get("/shared/{token}")
+def get_shared_chat(token: str, database: Session = Depends(get_db)) -> dict:
+    """Return a read-only conversation for a valid, time-limited share link."""
+    try:
+        session_id = UUID(share_serializer().loads(token, max_age=60 * 60 * 24 * 365))
+    except (BadSignature, SignatureExpired, ValueError, TypeError) as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This share link is invalid or has expired.") from error
+
+    session = database.get(ChatSession, session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This shared conversation is no longer available.")
+    messages = database.scalars(
+        select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc())
+    )
+    return {
+        "title": session.title,
+        "messages": [
+            {
+                "role": message.role,
+                "content": message.content,
+                "citations": [citation.model_dump(mode="json") for citation in decode_citations(message.citations)],
+                "created_at": message.created_at,
+                "attachment_filename": message.attachment_filename,
+            }
+            for message in messages
+        ],
+    }
 
 
 @router.patch("/{session_id}", response_model=ChatSessionResponse)

@@ -52,6 +52,11 @@ export type ChatMessage = {
   created_at: string;
 };
 
+export type SharedChat = {
+  title: string;
+  messages: Array<Pick<ChatMessage, "role" | "content" | "citations" | "created_at" | "attachment_filename">>;
+};
+
 export type RecentDocumentItem = {
   id: string;
   original_filename: string;
@@ -367,6 +372,12 @@ export const deleteChat = (sessionId: string) =>
   request<void>(`/api/v1/chat/${sessionId}`, {
     method: "DELETE",
   });
+
+export const createChatShare = (sessionId: string) =>
+  request<{ token: string }>(`/api/v1/chat/${sessionId}/share`, { method: "POST" });
+
+export const getSharedChat = (token: string) =>
+  request<SharedChat>(`/api/v1/chat/shared/${encodeURIComponent(token)}`);
 
 export const clearAllChats = () =>
   request<void>("/api/v1/chat", {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Copy, FileText, Image as ImageIcon, Plus, Trash2, X } from "lucide-react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Check, Copy, ExternalLink, FileText, Image as ImageIcon, Link2, Plus, Share2, Trash2, X } from "lucide-react";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
 import { MarkdownMessage } from "../components/MarkdownMessage";
@@ -11,7 +11,7 @@ type PendingAttachment = {
   file: File;
   previewUrl?: string;
 };
-import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, getDashboardStats, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase } from "../services/api";
+import { attachKnowledgeBaseToChat, createChat, createChatShare, createKnowledgeBase, deleteDocument, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -150,6 +150,9 @@ export function ChatPage() {
   const [uploading, setUploading] = useState(false);
   const [indexing, setIndexing] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState("");
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -258,6 +261,29 @@ export function ChatPage() {
       window.setTimeout(() => setCopiedMessageId((current) => current === message.id ? "" : current), 1800);
     } catch {
       setError("Could not copy this message. Check your browser clipboard permissions.");
+    }
+  }
+
+  async function prepareShareLink() {
+    if (!sessionId || sharing) return;
+    setSharing(true);
+    setShareError("");
+    try {
+      const { token } = await createChatShare(sessionId);
+      setShareUrl(`${window.location.origin}/shared/${encodeURIComponent(token)}`);
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : "Could not create a share link.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareError("Link copied. Anyone with this link can view this chat.");
+    } catch {
+      setShareError("Could not copy the link. Select and copy it instead.");
     }
   }
 
@@ -432,6 +458,9 @@ export function ChatPage() {
   }
 
   return <div className="mx-auto flex h-full min-h-0 w-full max-w-none flex-col gap-2 max-[380px]:pt-4">
+    <div className="flex shrink-0 items-center justify-end">
+      <button type="button" onClick={() => void prepareShareLink()} disabled={!sessionId || sharing} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-[#191816] dark:text-slate-200 dark:hover:bg-white/5" title={sessionId ? "Create a read-only share link" : "Send a message first to share this chat"}><Share2 className="size-4" />{sharing ? "Creating link…" : "Share"}</button>
+    </div>
     <section className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-6" aria-live="polite">
       {messages.length === 0 && <div className="flex min-h-64 items-center justify-center text-center"><div>
         <p className="text-4xl" aria-hidden="true">✦</p>
@@ -477,7 +506,31 @@ export function ChatPage() {
       </div>
     </form>
     {(uploading || indexing) && <p role="status" className="text-sm text-slate-500">{uploading ? "Uploading your file…" : "Indexing your file… You can start chatting when it is ready."}</p>}
+    {shareError && !shareUrl && <p role="alert" className="shrink-0 text-sm text-rose-600 dark:text-rose-300">{shareError}</p>}
+    {shareUrl && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) { setShareUrl(""); setShareError(""); } }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="share-chat-title" className="surface w-full max-w-md rounded-2xl p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4"><div><h2 id="share-chat-title" className="text-lg font-semibold text-slate-900 dark:text-white">Share this chat</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Anyone with the link can read this conversation. Your account and documents stay private.</p></div><button type="button" onClick={() => { setShareUrl(""); setShareError(""); }} aria-label="Close share dialog" className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-4" /></button></div>
+        <div className="mt-4 flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-black/20"><Link2 className="size-4 shrink-0 text-slate-500" /><input readOnly value={shareUrl} aria-label="Chat share link" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200" /><button type="button" onClick={() => void copyShareLink()} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800">Copy</button></div>
+        {shareError && <p role="status" className="mt-2 text-xs text-teal-700 dark:text-teal-300">{shareError}</p>}
+        <div className="mt-4 flex flex-wrap gap-2"><a href={`https://wa.me/?text=${encodeURIComponent(`${document.title}: ${shareUrl}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#25d366] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1fb95a]">WhatsApp <ExternalLink className="size-3.5" /></a>{typeof navigator.share === "function" && <button type="button" onClick={() => void navigator.share({ title: "Shared chat", url: shareUrl })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-white/5"><Share2 className="size-4" />More options</button>}</div>
+      </section>
+    </div>}
   </div>;
+}
+
+export function SharedChatPage() {
+  const { token = "" } = useParams();
+  const [sharedChat, setSharedChat] = useState<SharedChat | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void getSharedChat(token).then((chat) => { if (active) setSharedChat(chat); }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "This shared conversation is unavailable."); });
+    return () => { active = false; };
+  }, [token]);
+
+  return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-[#11100f] dark:text-white sm:px-8">
+    <div className="mx-auto max-w-3xl"><a href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 dark:text-teal-300">✦ Cognitive RAG</a>{error ? <section className="surface mt-8 rounded-2xl p-6"><h1 className="text-xl font-semibold">Shared chat unavailable</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{error}</p></section> : !sharedChat ? <p className="mt-10 text-sm text-slate-500">Loading shared conversation…</p> : <><h1 className="mt-8 text-2xl font-bold sm:text-3xl">{sharedChat.title}</h1><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Read-only shared conversation</p><section className="mt-8 space-y-7">{sharedChat.messages.map((message, index) => <article key={`${message.created_at}-${index}`} className={message.role === "user" ? "ml-auto w-fit max-w-[88%] rounded-2xl bg-[#163a32] px-4 py-3 text-white" : "mr-auto w-full py-1 text-slate-900 dark:text-white"}><p className="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">{message.role === "user" ? "User" : "Cognitive RAG"}</p>{message.attachment_filename && <p className="mb-2 text-xs opacity-70">Attachment: {message.attachment_filename}</p>}{message.role === "assistant" ? <MarkdownMessage content={message.content} /> : <p className="whitespace-pre-wrap text-[15px] leading-7">{message.content}</p>}{message.citations.length > 0 && <div className="mt-4 border-t border-current/10 pt-3">{message.citations.map((citation) => <p key={`${citation.document_id}-${citation.chunk_index}`} className="text-xs opacity-70">Source: {citation.filename}</p>)}</div>}</article>)}</section></>}</div>
+  </main>;
 }
 
 export function SettingsPage() {
