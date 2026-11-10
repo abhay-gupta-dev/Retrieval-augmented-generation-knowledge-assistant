@@ -15,7 +15,7 @@ from app.core.security import get_current_user
 from app.database.connection import get_db
 from app.database.models import BillingOrder, User
 from app.services.billing_service import PRODUCTS, apply_paid_order, entitlement_summary, is_owner, verify_checkout_signature, verify_webhook_signature
-from app.services.admin_notifications import send_purchase_confirmation_email
+from app.services.admin_notifications import send_purchase_confirmation_email, send_purchase_owner_notification
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -163,12 +163,22 @@ def verify_payment(
     newly_paid = apply_paid_order(database, order, payload.razorpay_payment_id)
     database.refresh(user)
     if newly_paid:
+        product_name = PRODUCTS[order.product_code]["name"]
+        amount_inr = order.amount_paise / 100
         background_tasks.add_task(
             send_purchase_confirmation_email,
             order.buyer_name,
             order.buyer_email,
-            PRODUCTS[order.product_code]["name"],
-            order.amount_paise / 100,
+            product_name,
+            amount_inr,
+            payload.razorpay_payment_id,
+        )
+        background_tasks.add_task(
+            send_purchase_owner_notification,
+            order.buyer_name,
+            order.buyer_email,
+            product_name,
+            amount_inr,
             payload.razorpay_payment_id,
         )
     return {"status": "paid", "billing": entitlement_summary(user)}
@@ -209,12 +219,22 @@ async def razorpay_webhook(
         return {"status": "recorded"}
     newly_paid = apply_paid_order(database, order, payment_id)
     if newly_paid:
+        product_name = PRODUCTS[order.product_code]["name"]
+        amount_inr = order.amount_paise / 100
         background_tasks.add_task(
             send_purchase_confirmation_email,
             order.buyer_name,
             order.buyer_email,
-            PRODUCTS[order.product_code]["name"],
-            order.amount_paise / 100,
+            product_name,
+            amount_inr,
+            payment_id,
+        )
+        background_tasks.add_task(
+            send_purchase_owner_notification,
+            order.buyer_name,
+            order.buyer_email,
+            product_name,
+            amount_inr,
             payment_id,
         )
     return {"status": "ok"}

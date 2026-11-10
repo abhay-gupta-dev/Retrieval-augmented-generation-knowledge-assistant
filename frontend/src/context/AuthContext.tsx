@@ -24,6 +24,7 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const explicitLogoutKey = "knowledge-platform:explicit-logout";
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         window.localStorage.setItem("knowledge-platform:account-session", "true");
         window.localStorage.removeItem("knowledge-platform:guest-session");
       }
+      window.localStorage.removeItem(explicitLogoutKey);
       setUser(currentUser);
       return currentUser;
     } catch {
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           window.localStorage.setItem("knowledge-platform:account-session", "true");
           window.localStorage.removeItem("knowledge-platform:guest-session");
         }
+        window.localStorage.removeItem(explicitLogoutKey);
         setUser(refreshedUser);
         return refreshedUser;
       } catch {
@@ -82,6 +85,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signIn = useCallback(async (email: string, password: string): Promise<User> => {
     const loggedInUser = await loginRequest({ email, password });
+    window.localStorage.removeItem(explicitLogoutKey);
     window.localStorage.setItem("knowledge-platform:account-session", "true");
     window.localStorage.removeItem("knowledge-platform:guest-session");
     setUser(loggedInUser);
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signUp = useCallback(async (name: string, email: string, password: string): Promise<User> => {
     const registeredUser = await registerRequest({ name, email, password });
+    window.localStorage.removeItem(explicitLogoutKey);
     window.localStorage.setItem("knowledge-platform:account-session", "true");
     window.localStorage.removeItem("knowledge-platform:guest-session");
     setUser(registeredUser);
@@ -98,6 +103,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const continueAsGuest = useCallback(async (): Promise<User> => {
     const guestUser = await guestLoginRequest();
+    window.localStorage.removeItem(explicitLogoutKey);
     window.localStorage.setItem("knowledge-platform:guest-session", "true");
     window.localStorage.removeItem("knowledge-platform:account-session");
     setUser(guestUser);
@@ -114,16 +120,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch {
       // Ignore network failures on logout
     }
-    // After logging out of account, start fresh guest workspace
-    try {
-      const guest = await guestLoginRequest();
-      window.localStorage.setItem("knowledge-platform:guest-session", "true");
-      window.localStorage.removeItem("knowledge-platform:account-session");
-      setUser(guest);
-    } catch {
-      window.localStorage.removeItem("knowledge-platform:account-session");
-      setUser(null);
-    }
+    window.localStorage.removeItem("knowledge-platform:account-session");
+    window.localStorage.removeItem("knowledge-platform:guest-session");
+    window.localStorage.setItem(explicitLogoutKey, "true");
+    setUser(null);
   }, []);
 
   const isGuest = Boolean(user && user.provider === "guest");

@@ -7,6 +7,7 @@ import json
 import logging
 import smtplib
 import ssl
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from app.core.config import get_settings
@@ -47,6 +48,10 @@ def send_email(recipient: str, subject: str, body: str, html_body: str | None = 
                     raise RuntimeError(f"Brevo email API returned HTTP {response.status}.")
             logger.info("Transactional email sent through the email API.")
             return True
+        except HTTPError as error:
+            provider_message = error.read().decode("utf-8", errors="replace")[:1000]
+            logger.error("Brevo rejected a transactional email (HTTP %s): %s", error.code, provider_message)
+            return False
         except Exception:
             logger.exception("Could not send transactional email through the email API.")
             return False
@@ -127,6 +132,22 @@ def send_purchase_confirmation_email(
         <p style="margin-top:24px;color:#475569">Thank you,<br><strong>The Cognitive RAG team</strong></p>
       </div></body></html>"""
     send_email(email, subject, body, html_body)
+
+
+def send_purchase_owner_notification(
+    buyer_name: str, buyer_email: str, product_name: str, amount_inr: float, payment_id: str | None
+) -> None:
+    settings = get_settings()
+    if not settings.admin_notification_email:
+        logger.info("Purchase owner alert skipped because ADMIN_NOTIFICATION_EMAIL is not configured.")
+        return
+    subject = f"Cognitive RAG payment received — ₹{amount_inr:.2f}"
+    body = (
+        "A customer payment was captured and applied to their account.\n\n"
+        f"Buyer: {buyer_name}\nEmail: {buyer_email}\nProduct: {product_name}\n"
+        f"Amount: ₹{amount_inr:.2f}\nRazorpay payment ID: {payment_id or 'Confirmed'}\n"
+    )
+    send_email(settings.admin_notification_email, subject, body)
 
 
 def account_signup_notification(name: str, email: str, provider: str) -> tuple[str, str]:

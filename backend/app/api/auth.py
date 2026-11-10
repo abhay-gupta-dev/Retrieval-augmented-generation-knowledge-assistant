@@ -221,7 +221,11 @@ async def google_callback(
     except (OAuthError, RuntimeError):
         return login_error_redirect(settings, "Google login failed. Please try again.")
 
-    response = RedirectResponse(f"{settings.frontend_url}/chat?auth=1", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(
+        f"{settings.frontend_url}/chat?auth=1",
+        status_code=status.HTTP_303_SEE_OTHER,
+        background=background_tasks,
+    )
     set_session_cookies(response, user, refresh_token, settings)
     return response
 

@@ -27,8 +27,11 @@ def utc_now() -> datetime:
 
 
 def is_owner(user: User) -> bool:
-    email = get_settings().billing_owner_email.strip().casefold()
-    return bool(email and user.email.casefold() == email)
+    settings = get_settings()
+    email = (settings.billing_owner_email or settings.admin_notification_email).strip().casefold()
+    # A verified Google identity prevents someone from claiming the owner email
+    # through the app's unverified email/password signup form.
+    return bool(email and user.provider == "google" and user.google_id and user.email.casefold() == email)
 
 
 def _roll_subscription_period(user: User, now: datetime) -> None:
