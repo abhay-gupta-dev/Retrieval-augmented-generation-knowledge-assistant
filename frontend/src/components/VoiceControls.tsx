@@ -56,10 +56,6 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     recognitionRef.current = null;
   }, []);
 
-  if (!Recognition) {
-    return <output className="hidden self-center text-xs text-slate-500 sm:block">Voice input unavailable</output>;
-  }
-
   function startRecognition() {
     if (!Recognition || !shouldListenRef.current) return;
     const recognition = new Recognition();
@@ -76,13 +72,16 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
       if (event.error === "no-speech" || event.error === "aborted") return;
       shouldListenRef.current = false;
       setState("error");
+      const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
       const messages: Record<string, string> = {
-        "audio-capture": "No microphone was found or it is already in use.",
-        "network": "Speech recognition needs a network connection.",
-        "not-allowed": "Microphone permission was denied.",
-        "service-not-allowed": "Speech recognition is not allowed in this browser.",
+        "audio-capture": "Your phone could not access a microphone. Check browser and phone settings.",
+        "network": "Voice typing needs an internet connection. Check your connection and try again.",
+        "not-allowed": !window.isSecureContext && !localHost
+          ? "Microphone access requires the secure HTTPS site."
+          : "Microphone access is blocked. Allow it in this site's browser settings, then retry.",
+        "service-not-allowed": "This browser does not allow speech recognition. Try the latest Chrome browser.",
       };
-      setMessage(messages[event.error ?? ""] ?? "Speech recognition failed. Try again.");
+      setMessage(messages[event.error ?? ""] ?? "Voice typing failed. Check microphone permission and try again.");
     };
     recognition.onnomatch = () => {};
     recognition.onend = () => {
@@ -129,7 +128,17 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
       }
       return;
     }
-    if (!Recognition) return;
+    if (!Recognition) {
+      setState("error");
+      setMessage("Voice typing is not supported by this browser. Try the latest Chrome browser.");
+      return;
+    }
+    const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+    if (!window.isSecureContext && !localHost) {
+      setState("error");
+      setMessage("Microphone access requires the secure HTTPS site.");
+      return;
+    }
     transcriptRef.current = "";
     segmentRef.current = "";
     shouldListenRef.current = true;
@@ -138,14 +147,17 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
     startRecognition();
   }
 
-  return <span className="inline-flex items-center gap-2">
+  return <span className="relative inline-flex items-center gap-2">
     <button type="button" onClick={toggleListening} disabled={disabled} aria-label={state === "listening" ? "Stop listening" : "Start voice input"} title={state === "listening" ? "Stop listening" : "Start voice input"} className={`grid size-10 place-items-center rounded-full transition disabled:opacity-50 sm:size-12 ${state === "listening" ? "bg-rose-600 text-white shadow-md shadow-rose-900/20" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
       {state === "listening" ? <AudioLines className="size-5" aria-hidden="true" /> : <Mic className="size-5" aria-hidden="true" />}
     </button>
     {state === "listening" && <span role="status" aria-label="Listening" className="inline-flex h-8 items-center gap-0.5 px-1">
       {[10, 18, 12, 22, 14, 8].map((height, index) => <span key={`${height}-${index}`} className="w-1 animate-pulse rounded-full bg-teal-600 dark:bg-teal-300" style={{ height, animationDelay: `${index * 90}ms` }} />)}
     </span>}
-    {message && <output className="max-w-28 truncate text-[10px] leading-tight text-rose-600" title={message}>{message}</output>}
+    {message && <span className="absolute bottom-full right-0 z-[80] mb-2 flex w-[min(18rem,calc(100vw-2rem))] items-start gap-2 rounded-xl border border-rose-200 bg-white p-3 text-left text-xs leading-5 text-rose-800 shadow-xl dark:border-rose-900 dark:bg-slate-900 dark:text-rose-200">
+      <output role="status" aria-live="polite" className="min-w-0 flex-1">{message}</output>
+      <button type="button" aria-label="Dismiss microphone message" onClick={() => { setMessage(""); setState("idle"); }} className="grid size-6 shrink-0 place-items-center rounded-md text-base leading-none hover:bg-rose-50 dark:hover:bg-rose-950/50">×</button>
+    </span>}
   </span>;
 }
 

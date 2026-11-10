@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Copy, FileText, Image as ImageIcon, PencilLine, Plus, Trash2, X } from "lucide-react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Copy, FileText, Image as ImageIcon, PencilLine, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
 import { MarkdownMessage } from "../components/MarkdownMessage";
@@ -146,6 +146,7 @@ export function ChatPage() {
   const [question, setQuestion] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [error, setError] = useState("");
+  const replyLimitReached = /free AI reply|reply pack|subscription/i.test(error);
   const [notice, setNotice] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -558,7 +559,23 @@ export function ChatPage() {
     </section>
 
     {notice && <p role="status" className="rounded-xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950/40 dark:text-teal-100">{notice}</p>}
-    {error && <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"><div className="min-w-0 flex-1"><p>{error}</p>{/free AI reply|reply pack|subscription/i.test(error) && <a href="/billing" className="mt-2 inline-flex font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300">View plans and buy replies</a>}</div><button type="button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setError("")} className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60"><X className="size-4" /></button></div>}
+    {error && !replyLimitReached && <div role="alert" className="flex shrink-0 items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"><p className="min-w-0 flex-1">{error}</p><button type="button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setError("")} className="grid size-7 shrink-0 place-items-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60"><X className="size-4" /></button></div>}
+
+    {replyLimitReached && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setError(""); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="reply-limit-title" className="surface relative w-full max-w-md rounded-3xl p-6 shadow-2xl sm:p-8">
+        <button type="button" aria-label="Close upgrade dialog" onClick={() => setError("")} className="absolute right-4 top-4 grid size-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"><X className="size-5" /></button>
+        <div className="grid size-12 place-items-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200"><Sparkles className="size-6" /></div>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Free reply used</p>
+        <h2 id="reply-limit-title" className="mt-2 pr-5 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">You’ve reached your free reply limit</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">Choose a reply pack or plan to keep chatting. Your conversations will stay in your account.</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-slate-50 p-3 dark:bg-white/5"><p className="text-xs text-slate-500 dark:text-slate-400">Reply packs from</p><p className="mt-1 font-bold text-slate-900 dark:text-white">₹3</p></div>
+          <div className="rounded-2xl bg-slate-50 p-3 dark:bg-white/5"><p className="text-xs text-slate-500 dark:text-slate-400">Plans from</p><p className="mt-1 font-bold text-slate-900 dark:text-white">₹60</p></div>
+        </div>
+        <Link to="/billing" onClick={() => setError("")} className="mt-5 flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700">View upgrade options</Link>
+        <button type="button" onClick={() => setError("")} className="mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">Maybe later</button>
+      </section>
+    </div>}
 
     <form onSubmit={(event) => void ask(event)} className="chat-composer surface flex shrink-0 flex-col gap-1.5 rounded-2xl p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] sm:gap-2 sm:p-2">
       <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,.pdf,application/pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => { if (event.target.files?.length) stageAttachments(Array.from(event.target.files)); if (fileInput.current) fileInput.current.value = ""; }} />

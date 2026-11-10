@@ -329,6 +329,7 @@ export function DashboardLayout() {
             ><PanelLeftClose className="size-5" /></button>}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {activeChatId && <button type="button" onClick={() => void prepareChatShare()} disabled={sharing} aria-label="Share this chat" title="Share this chat" className="grid size-10 place-items-center rounded-xl text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-white/10"><Share2 className="size-5" /></button>}
+              {location.pathname === "/chat" && <NavLink to="/billing" aria-label="Upgrade plan" title="View reply plans" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200 dark:hover:bg-blue-950 sm:px-3"><CreditCard className="size-4 shrink-0" /><span className="hidden sm:inline">Upgrade</span></NavLink>}
               <div className="md:hidden"><ProfileMenu align="right" /></div>
             </div>
           </div>
