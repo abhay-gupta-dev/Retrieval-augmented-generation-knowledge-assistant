@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     vision_model: str = "qwen/qwen3.8-27b"
     groq_api_key: str = ""
     max_image_bytes: int = 10 * 1024 * 1024
+    admin_notification_email: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_starttls: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

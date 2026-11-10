@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -25,6 +25,8 @@ from app.services.auth_service import (
     rotate_refresh_session,
     upsert_google_user,
 )
+from app.services.admin_notifications import account_signup_notification, guest_session_notification, send_admin_notification
+from sqlalchemy import or_, select
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 oauth = OAuth()
@@ -79,6 +81,7 @@ def clear_session_cookies(response: Response, settings: Settings) -> None:
 def register(
     payload: RegisterRequest,
     response: Response,
+    background_tasks: BackgroundTasks,
     database: Session = Depends(get_db),
 ) -> User:
     """Register a new user with name, email, and password."""
@@ -90,6 +93,8 @@ def register(
 
     refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
     set_session_cookies(response, user, refresh_token, settings)
+    subject, body = account_signup_notification(user.name, user.email, "email/password")
+    background_tasks.add_task(send_admin_notification, subject, body)
     return user
 
 
@@ -115,6 +120,7 @@ def login(
 def guest_login(
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     database: Session = Depends(get_db),
 ) -> User:
     """Create or reuse an anonymous workspace session without requiring signup."""
@@ -146,6 +152,8 @@ def guest_login(
     )
     refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
     set_session_cookies(response, user, refresh_token, settings)
+    subject, body = guest_session_notification()
+    background_tasks.add_task(send_admin_notification, subject, body)
     return user
 
 
@@ -188,7 +196,11 @@ async def google_login(request: Request) -> Response:
 
 
 @router.get("/google/callback", name="google_callback")
-async def google_callback(request: Request, database: Session = Depends(get_db)) -> Response:
+async def google_callback(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    database: Session = Depends(get_db),
+) -> Response:
     settings = get_settings()
     try:
         token = await google_client().authorize_access_token(request)
@@ -196,7 +208,13 @@ async def google_callback(request: Request, database: Session = Depends(get_db))
         google_id, email = profile.get("sub"), profile.get("email")
         if not google_id or not email or profile.get("email_verified") is not True:
             return login_error_redirect(settings, "Google did not provide a verified email address.")
+        existing_user = database.scalar(
+            select(User.id).where(or_(User.google_id == google_id, User.email == email.strip().lower()))
+        )
         user = upsert_google_user(database, google_id=google_id, email=email, name=profile.get("name") or "", picture=profile.get("picture"))
+        if existing_user is None:
+            subject, body = account_signup_notification(user.name, user.email, "Google")
+            background_tasks.add_task(send_admin_notification, subject, body)
         refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
     except (OAuthError, RuntimeError):
         return login_error_redirect(settings, "Google login failed. Please try again.")
