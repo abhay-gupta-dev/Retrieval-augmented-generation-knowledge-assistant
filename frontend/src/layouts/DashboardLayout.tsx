@@ -318,7 +318,6 @@ export function DashboardLayout() {
               title="Open menu, chat history, and account"
               className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600 dark:border-[#3a3935] dark:bg-[#1c1b18] dark:text-slate-100 dark:hover:bg-white/10 md:hidden"
             ><Menu className="size-5" /></button>
-            <div className="md:hidden"><Logo compact /></div>
             {sidebarVisible && <button
               type="button"
               onClick={() => setSidebarVisible((visible) => !visible)}
@@ -330,7 +329,6 @@ export function DashboardLayout() {
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {activeChatId && <button type="button" onClick={() => void prepareChatShare()} disabled={sharing} aria-label="Share this chat" title="Share this chat" className="grid size-10 place-items-center rounded-xl text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-white/10"><Share2 className="size-5" /></button>}
               {location.pathname === "/chat" && <NavLink to="/billing" aria-label="Upgrade plan" title="View reply plans" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200 dark:hover:bg-blue-950 sm:px-3"><CreditCard className="size-4 shrink-0" /><span className="hidden sm:inline">Upgrade</span></NavLink>}
-              <div className="md:hidden"><ProfileMenu align="right" /></div>
             </div>
           </div>
         </header>
