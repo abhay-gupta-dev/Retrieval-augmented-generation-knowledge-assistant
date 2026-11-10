@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Copy, FileText, Image as ImageIcon, PencilLine, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Activity, Copy, CreditCard, FileText, Image as ImageIcon, MessageSquare, PencilLine, Plus, RefreshCw, Sparkles, TrendingUp, UserRound, Users, Wallet, Trash2, X } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { HealthStatus } from "../components/HealthStatus";
@@ -12,7 +12,7 @@ type PendingAttachment = {
   file: File;
   previewUrl?: string;
 };
-import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, editChatMessage, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
+import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, editChatMessage, getAdminDashboardOverview, getBillingStatus, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type AdminDashboardOverview, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -26,10 +26,63 @@ function useKnowledgeBases() {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null); const [error, setError] = useState("");
-  useEffect(() => { void getDashboardStats().then(setStats).catch((e) => setError(e instanceof Error ? e.message : "Could not load workspace stats.")); }, []);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [ownerOverview, setOwnerOverview] = useState<AdminDashboardOverview | null>(null);
+  const [error, setError] = useState("");
+  async function loadDashboard() {
+    setError("");
+    try {
+      const billing = await getBillingStatus();
+      if (billing.is_owner) {
+        setOwnerOverview(await getAdminDashboardOverview());
+        setStats(null);
+      } else {
+        setStats(await getDashboardStats());
+        setOwnerOverview(null);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load dashboard data.");
+    }
+  }
+  useEffect(() => { void loadDashboard(); }, []);
+  if (ownerOverview) return <OwnerDashboard overview={ownerOverview} onRefresh={() => void loadDashboard()} />;
   const metrics = stats ? [["Knowledge bases", stats.total_knowledge_bases, "Organize your sources"], ["Indexed documents", stats.total_documents, "Ready for retrieval"], ["Stored chunks", stats.total_chunks, "Semantic context"], ["Conversations", stats.total_chat_sessions, "Your recent thinking"]] : [];
   return <div className="space-y-8"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Your private workspace</p><h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Welcome back, {user?.name.split(" ")[0]}.</h1><p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">Bring your documents into focus, then ask grounded questions with the sources close at hand.</p></div><HealthStatus /></div>{error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.length ? metrics.map(([label, value, hint]) => <div key={label} className="surface rounded-2xl p-5"><p className="text-sm text-slate-500 dark:text-slate-400">{label}</p><p className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">{value}</p><p className="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-blue-700 dark:text-blue-300">{hint}</p></div>) : [1, 2, 3, 4].map((item) => <div key={item} className="surface animate-pulse rounded-2xl p-5"><div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-700" /><div className="mt-4 h-9 w-14 rounded bg-slate-200 dark:bg-slate-700" /><div className="mt-3 h-3 w-28 rounded bg-slate-200 dark:bg-slate-700" /></div>)}</div><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><div className="surface rounded-2xl p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Recent documents</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">Your knowledge base</h2></div><a href="/documents" className="text-sm font-semibold text-blue-700 hover:text-blue-900 dark:text-blue-300">Manage files →</a></div>{stats?.recent_documents.length ? <div className="mt-6 space-y-3">{stats.recent_documents.map((document) => <div key={document.id} className="flex items-center justify-between gap-4 rounded-xl bg-[#eff6ff] p-3 dark:bg-white/5"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{document.original_filename}</p><p className="mt-1 text-xs text-slate-500">{document.knowledge_base_name} · {document.chunk_count} chunks</p></div><span className="shrink-0 text-xs font-semibold text-blue-700 dark:text-blue-300">{document.status}</span></div>)}</div> : <p className="mt-8 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700">No documents yet. Upload a file to start building context.</p>}</div><div className="rounded-2xl bg-[#1d4ed8] p-6 text-[#e7eaf0]"><p className="text-sm font-semibold text-blue-200">Start a focused session</p><h2 className="mt-2 text-2xl font-bold">Ask better questions of your own material.</h2><p className="mt-3 text-sm leading-6 text-[#b4bfd0]">Create a conversation, choose a knowledge base, and keep every answer anchored to your sources.</p><a href="/chat" className="mt-6 inline-flex rounded-xl bg-blue-300 px-4 py-2.5 text-sm font-bold text-[#ffffff] transition hover:bg-blue-200">Open chat <span className="ml-2" aria-hidden="true">→</span></a></div></div></div>;
+}
+
+function OwnerDashboard({ overview, onRefresh }: { overview: AdminDashboardOverview; onRefresh: () => void }) {
+  const metrics = [
+    { label: "Registered accounts", value: overview.registered_accounts, detail: `+${overview.accounts_created_30d} in 30 days`, Icon: Users },
+    { label: "Guest workspaces", value: overview.guest_workspaces, detail: "Anonymous sessions created", Icon: UserRound },
+    { label: "Active workspaces", value: overview.active_workspaces_30d, detail: "Used chat in the last 30 days", Icon: Activity },
+    { label: "Conversations", value: overview.conversations, detail: `${overview.assistant_replies} AI replies generated`, Icon: MessageSquare },
+    { label: "Documents", value: overview.documents, detail: `${overview.document_chunks.toLocaleString()} indexed chunks`, Icon: FileText },
+    { label: "Paying customers", value: overview.paying_customers, detail: `${overview.active_subscribers} active subscriptions`, Icon: CreditCard },
+    { label: "Payments received", value: `₹${overview.revenue_inr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`, detail: `${overview.paid_orders} captured orders`, Icon: Wallet },
+    { label: "Revenue · last 30 days", value: `₹${overview.revenue_30d_inr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`, detail: `${overview.pending_orders} pending orders`, Icon: TrendingUp },
+  ];
+  const maxAccounts = Math.max(1, ...overview.trends.map((day) => day.new_accounts));
+  const maxRevenue = Math.max(1, ...overview.trends.map((day) => day.revenue_inr));
+  return <div className="mx-auto w-full max-w-7xl space-y-6 pb-8">
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Private owner view</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Application overview</h1><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Growth, usage, and captured customer payments across Cognitive RAG.</p></div>
+      <div className="flex items-center gap-3"><span className="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline">Updated {new Date(overview.generated_at).toLocaleString()}</span><button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><RefreshCw className="size-4" />Refresh</button></div>
+    </header>
+
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Application metrics">
+      {metrics.map(({ label, value, detail, Icon }) => <article key={label} className="surface rounded-2xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-200"><Icon className="size-4.5" /></span></div><p className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{typeof value === "number" ? value.toLocaleString("en-IN") : value}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{detail}</p></article>)}
+    </section>
+
+    <section className="grid gap-4 lg:grid-cols-2" aria-label="Thirty day progress">
+      <article className="surface rounded-2xl p-4 sm:p-5"><div className="flex items-start justify-between"><div><h2 className="font-bold text-slate-950 dark:text-white">Account growth</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">New registered accounts · 30 days</p></div><span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{overview.accounts_created_30d.toLocaleString("en-IN")} total</span></div><div className="mt-5 flex h-36 items-end gap-1" role="img" aria-label="Daily new registered accounts during the past 30 days">{overview.trends.map((day) => <div key={day.date} title={`${day.date}: ${day.new_accounts} new accounts`} className="flex h-full min-w-0 flex-1 items-end"><span className="w-full rounded-t bg-blue-500/80" style={{ height: `${day.new_accounts ? Math.max(5, day.new_accounts / maxAccounts * 100) : 2}%` }} /></div>)}</div><div className="mt-2 flex justify-between text-[11px] text-slate-500"><span>{overview.trends[0]?.date}</span><span>Today</span></div></article>
+      <article className="surface rounded-2xl p-4 sm:p-5"><div className="flex items-start justify-between"><div><h2 className="font-bold text-slate-950 dark:text-white">Captured revenue</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Successful payments · 30 days</p></div><span className="text-sm font-semibold text-blue-700 dark:text-blue-300">₹{overview.revenue_30d_inr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span></div><div className="mt-5 flex h-36 items-end gap-1" role="img" aria-label="Daily captured payment revenue during the past 30 days">{overview.trends.map((day) => <div key={day.date} title={`${day.date}: ₹${day.revenue_inr.toLocaleString("en-IN")}, ${day.payments} payments`} className="flex h-full min-w-0 flex-1 items-end"><span className="w-full rounded-t bg-indigo-500/80" style={{ height: `${day.revenue_inr ? Math.max(5, day.revenue_inr / maxRevenue * 100) : 2}%` }} /></div>)}</div><div className="mt-2 flex justify-between text-[11px] text-slate-500"><span>{overview.trends[0]?.date}</span><span>Today</span></div></article>
+    </section>
+
+    <section className="surface overflow-hidden rounded-2xl">
+      <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5"><h2 className="text-lg font-bold text-slate-950 dark:text-white">Recent captured payments</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Buyer details and payment references. Full history is under Billing & payments.</p></div>
+      {overview.recent_payments.length ? <div className="divide-y divide-slate-100 dark:divide-slate-800">{overview.recent_payments.map((payment) => <article key={payment.payment_id || `${payment.buyer_email}-${payment.paid_at}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{payment.buyer_name} <span className="font-normal text-slate-500">· {payment.product_name}</span></p><p className="truncate text-xs text-slate-500 dark:text-slate-400">{payment.buyer_email}{payment.payment_id ? ` · ${payment.payment_id}` : ""}</p></div><div className="text-right"><p className="font-bold text-slate-900 dark:text-white">₹{payment.amount_inr.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</p><p className="text-xs text-slate-500">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : "Captured"}</p></div></article>)}</div> : <p className="p-5 text-sm text-slate-500 dark:text-slate-400">No captured payments yet.</p>}
+    </section>
+  </div>;
 }
 
 export function DocumentsPage() {

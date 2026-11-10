@@ -123,6 +123,33 @@ export type DashboardStats = {
   recent_chats: RecentChatItem[];
 };
 
+export type AdminDashboardOverview = {
+  generated_at: string;
+  registered_accounts: number;
+  guest_workspaces: number;
+  active_workspaces_30d: number;
+  accounts_created_30d: number;
+  conversations: number;
+  assistant_replies: number;
+  documents: number;
+  document_chunks: number;
+  paid_orders: number;
+  pending_orders: number;
+  paying_customers: number;
+  active_subscribers: number;
+  revenue_inr: number;
+  revenue_30d_inr: number;
+  trends: { date: string; new_accounts: number; payments: number; revenue_inr: number }[];
+  recent_payments: {
+    buyer_name: string;
+    buyer_email: string;
+    product_name: string;
+    amount_inr: number;
+    payment_id: string | null;
+    paid_at: string | null;
+  }[];
+};
+
 const chatHistoryChangedEvent = "knowledge-platform:chat-history-changed";
 export const savedChatOpenIntentKey = "knowledge-platform:open-saved-chat-once";
 
@@ -322,6 +349,9 @@ export const guestLogin = () =>
 // Dashboard
 export const getDashboardStats = () =>
   request<DashboardStats>("/api/v1/dashboard/stats");
+
+export const getAdminDashboardOverview = () =>
+  request<AdminDashboardOverview>("/api/v1/dashboard/admin/overview");
 
 // Knowledge Bases
 export const listKnowledgeBases = () =>
