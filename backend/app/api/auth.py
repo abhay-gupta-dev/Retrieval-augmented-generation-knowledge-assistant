@@ -25,7 +25,7 @@ from app.services.auth_service import (
     rotate_refresh_session,
     upsert_google_user,
 )
-from app.services.admin_notifications import account_signup_notification, guest_session_notification, send_admin_notification
+from app.services.admin_notifications import account_signup_notification, guest_session_notification, send_admin_notification, send_customer_welcome_email
 from sqlalchemy import or_, select
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -95,6 +95,7 @@ def register(
     set_session_cookies(response, user, refresh_token, settings)
     subject, body = account_signup_notification(user.name, user.email, "email/password")
     background_tasks.add_task(send_admin_notification, subject, body)
+    background_tasks.add_task(send_customer_welcome_email, user.name, user.email)
     return user
 
 
@@ -215,6 +216,7 @@ async def google_callback(
         if existing_user is None:
             subject, body = account_signup_notification(user.name, user.email, "Google")
             background_tasks.add_task(send_admin_notification, subject, body)
+            background_tasks.add_task(send_customer_welcome_email, user.name, user.email)
         refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
     except (OAuthError, RuntimeError):
         return login_error_redirect(settings, "Google login failed. Please try again.")

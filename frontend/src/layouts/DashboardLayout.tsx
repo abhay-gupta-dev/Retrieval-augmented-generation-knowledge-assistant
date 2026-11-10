@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, Files, House, Link2, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Share2, Trash2, UserRound, X } from "lucide-react";
+import { CreditCard, ExternalLink, Files, House, Link2, LogIn, Menu, MessageSquare, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Settings, Share2, Trash2, UserRound, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
@@ -12,6 +12,7 @@ const links = [
   { to: "/dashboard", label: "Overview", Icon: House },
   { to: "/chat", label: "Chat", Icon: MessageSquare },
   { to: "/documents", label: "Documents", Icon: Files },
+  { to: "/billing", label: "Plans & usage", Icon: CreditCard },
   { to: "/settings", label: "Settings", Icon: Settings },
   { to: "/profile", label: "Profile settings", Icon: UserRound },
 ];

@@ -33,6 +33,7 @@ from app.services.rag_service import (
     stream_answer_question,
 )
 from app.services.document_service import storage_path
+from app.services.billing_service import refund_reply_reservation, reserve_reply
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -379,6 +380,7 @@ def send_message(
     """Send a user message and generate a RAG or assistant answer."""
     session = owned_session(database, user, session_id)
     kb_id = resolve_active_kb_id(session)
+    reply_reservation = reserve_reply(database, user)
 
     user_message = ChatMessage(
         session_id=session.id,
@@ -404,6 +406,7 @@ def send_message(
         )
     except Exception as error:
         database.rollback()
+        refund_reply_reservation(user.id, reply_reservation)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     assistant_message = ChatMessage(
@@ -475,6 +478,7 @@ def send_image(
     if len(image_bytes) > settings.max_image_bytes:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Images must be 10 MB or smaller.")
 
+    reply_reservation = reserve_reply(database, user)
     visible_prompt = prompt.strip()[:4000]
     question = visible_prompt or "Describe this image and explain its important details."
     user_message = ChatMessage(
@@ -517,6 +521,7 @@ def send_image(
         answer = response.choices[0].message.content or "I could not read enough detail from that image. Try asking a more specific question."
     except APIError as error:
         database.rollback()
+        refund_reply_reservation(user.id, reply_reservation)
         logger.error(
             "Groq image analysis failed: status=%s request_id=%s model=%s",
             getattr(error, "status_code", None),
@@ -526,6 +531,7 @@ def send_image(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Groq image analysis failed: {error.message}") from error
     except Exception as error:
         database.rollback()
+        refund_reply_reservation(user.id, reply_reservation)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image analysis failed. Please try another image.") from error
 
     assistant_message = ChatMessage(session_id=session.id, role="assistant", content=answer, citations="[]")
@@ -549,6 +555,7 @@ def stream_message(
     """Send a user message and stream back tokens via Server-Sent Events (SSE)."""
     session = owned_session(database, user, session_id)
     kb_id = resolve_active_kb_id(session)
+    reply_reservation = reserve_reply(database, user)
 
     user_msg_content = payload.content.strip()
     user_message = ChatMessage(
@@ -577,6 +584,15 @@ def stream_message(
 
     def event_stream():
         stream_db = SessionLocal()
+        completed = False
+        refunded = False
+
+        def refund_reservation() -> None:
+            nonlocal refunded
+            if not completed and not refunded:
+                refund_reply_reservation(current_user_id, reply_reservation)
+                refunded = True
+
         try:
             # First send user_message info event
             yield f"event: user_message\ndata: {json.dumps({'id': str(user_msg_id), 'role': 'user', 'content': user_msg_content, 'attachment_filename': user_message.attachment_filename, 'created_at': user_created_at})}\n\n"
@@ -598,7 +614,9 @@ def stream_message(
                 elif event_type == "token":
                     yield f"event: token\ndata: {json.dumps({'token': event.get('token', '')})}\n\n"
                 elif event_type == "error":
+                    refund_reservation()
                     yield f"event: error\ndata: {json.dumps({'error': event.get('error', 'Unknown error')})}\n\n"
+                    break
                 elif event_type == "done":
                     full_content = event.get("full_content", "")
                     ast_msg = ChatMessage(
@@ -610,11 +628,14 @@ def stream_message(
                     stream_db.add(ast_msg)
                     stream_db.commit()
                     stream_db.refresh(ast_msg)
+                    completed = True
 
                     yield f"event: done\ndata: {json.dumps({'id': str(ast_msg.id), 'role': 'assistant', 'content': full_content, 'citations': accumulated_citations, 'created_at': ast_msg.created_at.isoformat()})}\n\n"
         except Exception as err:
+            refund_reservation()
             yield f"event: error\ndata: {json.dumps({'error': str(err)})}\n\n"
         finally:
+            refund_reservation()
             stream_db.close()
 
     headers = {
@@ -652,6 +673,8 @@ def retry_message(
 
     user_message = messages[last_user_idx]
 
+    reply_reservation = reserve_reply(database, user)
+
     # Delete any assistant messages after this user message
     for msg in messages[last_user_idx + 1:]:
         database.delete(msg)
@@ -669,6 +692,7 @@ def retry_message(
         )
     except Exception as error:
         database.rollback()
+        refund_reply_reservation(user.id, reply_reservation)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
     assistant_message = ChatMessage(

@@ -25,6 +25,11 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    free_replies_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    token_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    subscription_period_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    subscription_replies_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     refresh_sessions: Mapped[list["RefreshSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     knowledge_bases: Mapped[list["KnowledgeBase"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
@@ -129,3 +134,22 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped[ChatSession] = relationship(back_populates="messages")
+
+
+class BillingOrder(Base):
+    """A gateway order and auditable record of the buyer and purchased product."""
+
+    __tablename__ = "billing_orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    gateway_order_id: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
+    product_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    amount_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
+    buyer_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    buyer_email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="created", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

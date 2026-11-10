@@ -13,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
+from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.dashboard import router as dashboard_router
 from app.api.documents import router as documents_router
@@ -75,6 +76,7 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(billing_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")

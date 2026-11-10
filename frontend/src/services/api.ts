@@ -2,6 +2,43 @@ import type { User } from "../types/auth";
 
 export type HealthResponse = { status: "healthy" };
 
+export type BillingOrder = {
+  id: string;
+  product_code: string;
+  product_name: string;
+  amount_inr: number;
+  currency: string;
+  status: string;
+  buyer_name: string;
+  buyer_email: string;
+  gateway_order_id: string;
+  gateway_payment_id: string | null;
+  created_at: string;
+  paid_at: string | null;
+};
+
+export type BillingStatus = {
+  is_owner: boolean;
+  free_replies_remaining: number;
+  token_balance: number;
+  subscription_active: boolean;
+  subscription_expires_at: string | null;
+  subscription_replies_remaining: number;
+  can_purchase: boolean;
+  razorpay_key_id: string | null;
+  orders: BillingOrder[];
+};
+
+export type RazorpayOrder = {
+  key_id: string;
+  order_id: string;
+  amount: number;
+  currency: "INR";
+  name: string;
+  description: string;
+  prefill: { name: string; email: string };
+};
+
 export type Citation = {
   document_id: string;
   filename: string;
@@ -219,6 +256,25 @@ export async function request<T>(
 
 // Authentication
 export const getHealth = () => request<HealthResponse>("/health");
+
+export const getBillingStatus = () => request<BillingStatus>("/api/v1/billing/me");
+
+export const createBillingOrder = (product_code: string) =>
+  request<RazorpayOrder>("/api/v1/billing/orders", {
+    method: "POST",
+    body: JSON.stringify({ product_code }),
+  });
+
+export const verifyBillingPayment = (payload: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) => request<{ status: string; billing: BillingStatus }>("/api/v1/billing/verify", {
+  method: "POST",
+  body: JSON.stringify(payload),
+});
+
+export const listAdminBillingOrders = () => request<BillingOrder[]>("/api/v1/billing/admin/orders");
 
 export const getCurrentUser = () =>
   request<User>("/api/v1/auth/me");
