@@ -2,9 +2,11 @@
 
 from datetime import datetime, timezone
 from email.message import EmailMessage
+import json
 import logging
 import smtplib
 import ssl
+from urllib.request import Request, urlopen
 
 from app.core.config import get_settings
 
@@ -12,15 +14,40 @@ logger = logging.getLogger(__name__)
 
 
 def send_admin_notification(subject: str, body: str) -> None:
-    """Send an owner alert when SMTP notification settings are configured."""
+    """Send an owner alert through Brevo's HTTPS API or configured SMTP."""
     settings = get_settings()
-    required = (
-        settings.admin_notification_email,
-        settings.smtp_host,
-        settings.smtp_from_email,
-    )
-    if not all(required):
-        logger.info("Admin notification skipped because SMTP notification settings are incomplete.")
+    if not settings.admin_notification_email:
+        logger.info("Admin notification skipped because ADMIN_NOTIFICATION_EMAIL is not configured.")
+        return
+
+    if settings.brevo_api_key and settings.brevo_sender_email:
+        payload = json.dumps({
+            "sender": {"name": settings.brevo_sender_name, "email": settings.brevo_sender_email},
+            "to": [{"email": settings.admin_notification_email}],
+            "subject": subject,
+            "textContent": body,
+        }).encode("utf-8")
+        request = Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=payload,
+            headers={
+                "accept": "application/json",
+                "api-key": settings.brevo_api_key,
+                "content-type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=15) as response:
+                if response.status >= 300:
+                    raise RuntimeError(f"Brevo email API returned HTTP {response.status}.")
+            logger.info("Admin notification sent through the email API.")
+        except Exception:
+            logger.exception("Could not send an admin notification through the email API.")
+        return
+
+    if not (settings.smtp_host and settings.smtp_from_email):
+        logger.warning("Admin notification skipped because no complete email provider is configured.")
         return
 
     message = EmailMessage()
@@ -38,7 +65,7 @@ def send_admin_notification(subject: str, body: str) -> None:
             client.send_message(message)
     except Exception:
         # Signup and guest access should continue even when the mail provider is down.
-        logger.exception("Could not send an admin notification email.")
+        logger.exception("Could not send an admin notification email through SMTP.")
 
 
 def account_signup_notification(name: str, email: str, provider: str) -> tuple[str, str]:

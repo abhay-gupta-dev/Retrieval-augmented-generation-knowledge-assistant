@@ -247,7 +247,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
           </svg>
           Continue with Google
         </button>
-        {tab === "signup" && <p className="mt-3 text-xs leading-5 text-[#a8a29e]">The site owner may receive your name and email in account-signup notifications.</p>}
+        {tab === "signup" && <p className="mt-3 text-xs leading-5 text-[#a8a29e]">Account signups notify the site owner with your name and email through Brevo.</p>}
       </div>
     </div>
   );

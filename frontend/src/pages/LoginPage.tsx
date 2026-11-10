@@ -86,7 +86,7 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
 
         <div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />OR<span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" /></div>
         <button type="button" onClick={loginWithGoogle} className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#163a32] px-4 py-3 font-semibold text-white shadow-lg shadow-[#163a32]/20 transition hover:bg-[#1d4b40]"><span className="rounded bg-white px-1.5 py-0.5 font-bold text-[#4285F4]">G</span>Continue with Google</button>
-        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">The site owner may receive your name and email in account-signup notifications. Guest-session alerts are anonymous.</p>
+        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Account signups notify the site owner with your name and email through Brevo. Guest-session alerts are anonymous.</p>
 
         <form onSubmit={(event) => void submit(event)} className="mt-5 space-y-3">
           {registering && <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Name<input autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-teal-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>}
