@@ -18,7 +18,7 @@ export function LandingPage() {
     robots?.setAttribute("content", "index,follow");
   }, []);
 
-  return <main className="landing-page min-h-screen overflow-x-hidden bg-[#f7faf8] text-slate-950 dark:bg-[#11100f] dark:text-white">
+  return <main className="landing-page min-h-screen overflow-x-hidden bg-[#f5f7fb] text-slate-950 dark:bg-[#0b0d12] dark:text-white">
     <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
       <Logo />
       <nav className="flex items-center gap-2 sm:gap-3" aria-label="Main navigation">
@@ -38,7 +38,7 @@ export function LandingPage() {
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Start in guest mode, or sign up to keep your account and chat history.</p>
       </div>
       <div className="relative mx-auto w-full max-w-lg">
-        <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-blue-200/70 via-teal-100/60 to-transparent blur-2xl dark:from-blue-900/30 dark:via-teal-900/20" />
+        <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-blue-200/70 via-blue-100/60 to-transparent blur-2xl dark:from-blue-900/30 dark:via-blue-900/20" />
         <div className="surface relative rounded-3xl p-5 shadow-2xl shadow-slate-900/10 sm:p-7">
           <div className="flex items-center gap-3 border-b border-slate-200 pb-4 dark:border-slate-700"><div className="grid size-10 place-items-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200"><BookOpenText className="size-5" /></div><div><p className="font-semibold">Your document workspace</p><p className="text-xs text-slate-500 dark:text-slate-400">Private files · Source-grounded answers</p></div></div>
           <div className="mt-5 flex items-start gap-3 rounded-2xl bg-slate-100 p-4 dark:bg-white/5"><FileSearch className="mt-0.5 size-5 shrink-0 text-blue-700 dark:text-blue-300" /><p className="text-sm leading-6 text-slate-700 dark:text-slate-200">Ask a question about your uploaded PDF in everyday language.</p></div>

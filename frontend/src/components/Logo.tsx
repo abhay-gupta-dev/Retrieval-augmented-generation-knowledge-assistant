@@ -3,7 +3,7 @@ import { Sparkles } from "lucide-react";
 export function Logo({ subtitle, compact = false }: { subtitle?: string; compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-[#d97706] to-[#b45309] text-white shadow-sm">
+      <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] text-white shadow-sm">
         <Sparkles className="size-4.5" />
       </div>
       <div className={`flex flex-col ${compact ? "sr-only" : ""}`}>

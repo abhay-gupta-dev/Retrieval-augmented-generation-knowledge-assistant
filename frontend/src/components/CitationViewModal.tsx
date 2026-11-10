@@ -13,10 +13,10 @@ export function CitationViewModal({ citation, onClose }: CitationViewModalProps)
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#32302c] bg-[#1c1b18] p-6 shadow-2xl text-[#ececec]">
-        <div className="flex items-center justify-between border-b border-[#32302c] pb-3.5">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#252a35] bg-[#151820] p-6 shadow-2xl text-[#e7eaf0]">
+        <div className="flex items-center justify-between border-b border-[#252a35] pb-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-lg bg-[#2a2926] text-[#d97706]">
+            <div className="grid size-8 place-items-center rounded-lg bg-[#191d27] text-[#3b82f6]">
               <FileText className="size-4.5" />
             </div>
             <div className="min-w-0">
@@ -38,7 +38,7 @@ export function CitationViewModal({ citation, onClose }: CitationViewModalProps)
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#a8a29e]">
             Retrieved Context Excerpt
           </p>
-          <div className="max-h-80 overflow-y-auto rounded-xl border border-[#2e2d29] bg-[#22211e] p-4 text-xs leading-relaxed text-[#d6d3d1]">
+          <div className="max-h-80 overflow-y-auto rounded-xl border border-[#252a35] bg-[#151820] p-4 text-xs leading-relaxed text-[#d6d3d1]">
             {citation.excerpt}
           </div>
         </div>

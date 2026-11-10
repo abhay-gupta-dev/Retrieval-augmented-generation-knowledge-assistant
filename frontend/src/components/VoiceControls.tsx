@@ -152,7 +152,7 @@ export function VoiceInputButton({ disabled = false, onTranscript }: Readonly<Vo
       {state === "listening" ? <AudioLines className="size-5" aria-hidden="true" /> : <Mic className="size-5" aria-hidden="true" />}
     </button>
     {state === "listening" && <span role="status" aria-label="Listening" className="inline-flex h-8 items-center gap-0.5 px-1">
-      {[10, 18, 12, 22, 14, 8].map((height, index) => <span key={`${height}-${index}`} className="w-1 animate-pulse rounded-full bg-teal-600 dark:bg-teal-300" style={{ height, animationDelay: `${index * 90}ms` }} />)}
+      {[10, 18, 12, 22, 14, 8].map((height, index) => <span key={`${height}-${index}`} className="w-1 animate-pulse rounded-full bg-blue-600 dark:bg-blue-300" style={{ height, animationDelay: `${index * 90}ms` }} />)}
     </span>}
     {message && <span className="absolute bottom-full right-0 z-[80] mb-2 flex w-[min(18rem,calc(100vw-2rem))] items-start gap-2 rounded-xl border border-rose-200 bg-white p-3 text-left text-xs leading-5 text-rose-800 shadow-xl dark:border-rose-900 dark:bg-slate-900 dark:text-rose-200">
       <output role="status" aria-live="polite" className="min-w-0 flex-1">{message}</output>

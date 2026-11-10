@@ -79,7 +79,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#32302c] bg-[#1c1b18] p-7 shadow-2xl text-[#ececec]">
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#252a35] bg-[#151820] p-7 shadow-2xl text-[#e7eaf0]">
         <button
           type="button"
           onClick={onClose}
@@ -90,14 +90,14 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
         </button>
 
         {/* Tab switch */}
-        <div className="mb-6 flex border-b border-[#32302c]">
+        <div className="mb-6 flex border-b border-[#252a35]">
           <button
             type="button"
             onClick={() => { setTab("signin"); setError(""); }}
             className={`flex-1 pb-3 text-center text-sm font-medium transition ${
               tab === "signin"
-                ? "border-b-2 border-[#d97706] text-[#fafaf9]"
-                : "text-[#a8a29e] hover:text-[#ececec]"
+                ? "border-b-2 border-[#3b82f6] text-[#fafaf9]"
+                : "text-[#a8a29e] hover:text-[#e7eaf0]"
             }`}
           >
             Sign In
@@ -107,8 +107,8 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
             onClick={() => { setTab("signup"); setError(""); }}
             className={`flex-1 pb-3 text-center text-sm font-medium transition ${
               tab === "signup"
-                ? "border-b-2 border-[#d97706] text-[#fafaf9]"
-                : "text-[#a8a29e] hover:text-[#ececec]"
+                ? "border-b-2 border-[#3b82f6] text-[#fafaf9]"
+                : "text-[#a8a29e] hover:text-[#e7eaf0]"
             }`}
           >
             Create Account
@@ -129,14 +129,14 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[#a8a29e]">Full Name</label>
               <div className="relative">
-                <UserIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#78716c]" />
+                <UserIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#778195]" />
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Alex Morgan"
-                  className="w-full rounded-xl border border-[#32302c] bg-[#242320] py-2.5 pl-10 pr-3.5 text-sm text-[#ececec] placeholder:text-[#78716c] focus:border-[#d97706] focus:outline-none"
+                  className="w-full rounded-xl border border-[#252a35] bg-[#191d27] py-2.5 pl-10 pr-3.5 text-sm text-[#e7eaf0] placeholder:text-[#778195] focus:border-[#3b82f6] focus:outline-none"
                 />
               </div>
             </div>
@@ -145,14 +145,14 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[#a8a29e]">Email Address</label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#78716c]" />
+              <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#778195]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full rounded-xl border border-[#32302c] bg-[#242320] py-2.5 pl-10 pr-3.5 text-sm text-[#ececec] placeholder:text-[#78716c] focus:border-[#d97706] focus:outline-none"
+                className="w-full rounded-xl border border-[#252a35] bg-[#191d27] py-2.5 pl-10 pr-3.5 text-sm text-[#e7eaf0] placeholder:text-[#778195] focus:border-[#3b82f6] focus:outline-none"
               />
             </div>
           </div>
@@ -160,20 +160,20 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[#a8a29e]">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#78716c]" />
+              <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#778195]" />
               <input
                 type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-[#32302c] bg-[#242320] py-2.5 pl-10 pr-10 text-sm text-[#ececec] placeholder:text-[#78716c] focus:border-[#d97706] focus:outline-none"
+                className="w-full rounded-xl border border-[#252a35] bg-[#191d27] py-2.5 pl-10 pr-10 text-sm text-[#e7eaf0] placeholder:text-[#778195] focus:border-[#3b82f6] focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] hover:text-[#ececec]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#778195] hover:text-[#e7eaf0]"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -184,14 +184,14 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[#a8a29e]">Confirm Password</label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#78716c]" />
+                <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#778195]" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#32302c] bg-[#242320] py-2.5 pl-10 pr-10 text-sm text-[#ececec] placeholder:text-[#78716c] focus:border-[#d97706] focus:outline-none"
+                  className="w-full rounded-xl border border-[#252a35] bg-[#191d27] py-2.5 pl-10 pr-10 text-sm text-[#e7eaf0] placeholder:text-[#778195] focus:border-[#3b82f6] focus:outline-none"
                 />
               </div>
             </div>
@@ -200,7 +200,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
           <button
             type="submit"
             disabled={submitting || isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#d97706] py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#b45309] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3b82f6] py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1d4ed8] disabled:opacity-50"
           >
             {submitting ? (
               <>
@@ -216,16 +216,16 @@ export function AuthModal({ isOpen, onClose, defaultTab = "signin" }: AuthModalP
         </form>
 
         <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#32302c]" />
-          <span className="text-xs uppercase tracking-wider text-[#78716c]">or</span>
-          <div className="h-px flex-1 bg-[#32302c]" />
+          <div className="h-px flex-1 bg-[#252a35]" />
+          <span className="text-xs uppercase tracking-wider text-[#778195]">or</span>
+          <div className="h-px flex-1 bg-[#252a35]" />
         </div>
 
         <button
           type="button"
           onClick={loginWithGoogle}
           disabled={submitting || isLoading}
-          className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#32302c] bg-[#242320] py-2.5 text-sm font-medium text-[#ececec] transition hover:bg-[#2b2a26]"
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#252a35] bg-[#191d27] py-2.5 text-sm font-medium text-[#e7eaf0] transition hover:bg-[#2b2a26]"
         >
           <svg className="size-4" viewBox="0 0 24 24">
             <path

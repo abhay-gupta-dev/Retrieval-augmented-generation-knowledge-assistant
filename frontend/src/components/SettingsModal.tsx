@@ -43,10 +43,10 @@ export function SettingsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#32302c] bg-[#1c1b18] p-6 shadow-2xl text-[#ececec]">
-        <div className="flex items-center justify-between border-b border-[#32302c] pb-4">
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#252a35] bg-[#151820] p-6 shadow-2xl text-[#e7eaf0]">
+        <div className="flex items-center justify-between border-b border-[#252a35] pb-4">
           <div className="flex items-center gap-2.5">
-            <Settings className="size-5 text-[#d97706]" />
+            <Settings className="size-5 text-[#3b82f6]" />
             <h2 className="text-base font-semibold text-[#fafaf9]">Settings</h2>
           </div>
           <button
@@ -65,14 +65,14 @@ export function SettingsModal({
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#a8a29e]">
               Account
             </h3>
-            <div className="flex items-center justify-between rounded-xl border border-[#32302c] bg-[#22211e] p-3.5">
+            <div className="flex items-center justify-between rounded-xl border border-[#252a35] bg-[#151820] p-3.5">
               <div className="flex items-center gap-3">
-                <div className="grid size-9 place-items-center rounded-xl bg-[#2e2d29] text-[#ececec]">
+                <div className="grid size-9 place-items-center rounded-xl bg-[#252a35] text-[#e7eaf0]">
                   <User className="size-4.5" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-[#ececec]">{user?.name || "Guest"}</p>
-                  <p className="text-[11px] text-[#78716c]">
+                  <p className="text-xs font-medium text-[#e7eaf0]">{user?.name || "Guest"}</p>
+                  <p className="text-[11px] text-[#778195]">
                     {isGuest ? "Temporary anonymous workspace" : user?.email}
                   </p>
                 </div>
@@ -85,12 +85,12 @@ export function SettingsModal({
                     onClose();
                     onOpenAuth?.();
                   }}
-                  className="rounded-lg bg-[#d97706] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#b45309]"
+                  className="rounded-lg bg-[#3b82f6] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1d4ed8]"
                 >
                   Sign In
                 </button>
               ) : (
-                <span className="rounded-md bg-[#2e2d29] px-2 py-0.5 text-[11px] text-[#a8a29e]">
+                <span className="rounded-md bg-[#252a35] px-2 py-0.5 text-[11px] text-[#a8a29e]">
                   {user?.provider}
                 </span>
               )}
@@ -102,19 +102,19 @@ export function SettingsModal({
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#a8a29e]">
               Appearance
             </h3>
-            <div className="flex items-center justify-between rounded-xl border border-[#32302c] bg-[#22211e] p-3.5">
+            <div className="flex items-center justify-between rounded-xl border border-[#252a35] bg-[#151820] p-3.5">
               <div className="flex items-center gap-3">
                 {theme === "dark" ? (
-                  <Moon className="size-4 text-[#d97706]" />
+                  <Moon className="size-4 text-[#3b82f6]" />
                 ) : (
                   <Sun className="size-4 text-amber-500" />
                 )}
-                <span className="text-xs font-medium text-[#ececec]">Theme</span>
+                <span className="text-xs font-medium text-[#e7eaf0]">Theme</span>
               </div>
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="rounded-lg border border-[#383733] bg-[#2a2926] px-3 py-1.5 text-xs text-[#ececec] hover:bg-[#32302c]"
+                className="rounded-lg border border-[#383733] bg-[#191d27] px-3 py-1.5 text-xs text-[#e7eaf0] hover:bg-[#252a35]"
               >
                 {theme === "dark" ? "Dark (Claude)" : "Light"}
               </button>
@@ -126,7 +126,7 @@ export function SettingsModal({
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#a8a29e]">
               Data Management
             </h3>
-            <div className="rounded-xl border border-[#32302c] bg-[#22211e] p-3.5">
+            <div className="rounded-xl border border-[#252a35] bg-[#151820] p-3.5">
               {confirmClear ? (
                 <div>
                   <p className="text-xs text-rose-300">
@@ -144,7 +144,7 @@ export function SettingsModal({
                     <button
                       type="button"
                       onClick={() => setConfirmClear(false)}
-                      className="rounded-lg border border-[#383733] px-3 py-1.5 text-xs text-[#a8a29e] hover:bg-[#2a2926]"
+                      className="rounded-lg border border-[#383733] px-3 py-1.5 text-xs text-[#a8a29e] hover:bg-[#191d27]"
                     >
                       Cancel
                     </button>
@@ -153,8 +153,8 @@ export function SettingsModal({
               ) : (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-[#ececec]">Clear Conversations</p>
-                    <p className="text-[11px] text-[#78716c]">Remove all chat sessions</p>
+                    <p className="text-xs font-medium text-[#e7eaf0]">Clear Conversations</p>
+                    <p className="text-[11px] text-[#778195]">Remove all chat sessions</p>
                   </div>
                   <button
                     type="button"
@@ -171,7 +171,7 @@ export function SettingsModal({
 
           {/* Logout */}
           {!isGuest && (
-            <div className="border-t border-[#32302c] pt-4">
+            <div className="border-t border-[#252a35] pt-4">
               <button
                 type="button"
                 onClick={async () => {

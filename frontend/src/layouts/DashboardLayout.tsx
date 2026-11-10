@@ -30,7 +30,7 @@ function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; 
           className={({ isActive }) =>
             `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${compact ? "justify-center px-0" : ""} ${
               isActive
-                ? "bg-teal-100 text-teal-950 dark:bg-white/10 dark:text-teal-200"
+                ? "bg-blue-100 text-blue-950 dark:bg-white/10 dark:text-blue-200"
                 : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
             }`
           }
@@ -47,7 +47,7 @@ function NewChatButton() {
   return (
     <a
       href="/chat?new=1"
-      className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-bold text-[#102522] transition hover:bg-teal-200"
+      className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-300 px-4 py-3 text-sm font-bold text-[#ffffff] transition hover:bg-blue-200"
     >
       <span aria-hidden="true">+</span> New chat
     </a>
@@ -182,7 +182,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
                 }}
                 className={`w-full min-w-0 truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition ${
                   selectedChatId === chat.id
-                    ? "bg-teal-100 font-medium text-teal-950 dark:bg-white/10 dark:text-teal-100"
+                    ? "bg-blue-100 font-medium text-blue-950 dark:bg-white/10 dark:text-blue-100"
                     : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
                 }`}
               >
@@ -251,7 +251,7 @@ export function DashboardLayout() {
 
   return (
     <main className="app-shell flex h-[100dvh] min-h-[100svh] overflow-hidden">
-      {sidebarVisible && <aside className="app-sidebar hidden h-full w-64 shrink-0 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 text-slate-800 dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:flex">
+      {sidebarVisible && <aside className="app-sidebar hidden h-full w-64 shrink-0 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 text-slate-800 dark:border-[#252a35] dark:bg-[#10131a] dark:text-slate-200 md:flex">
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="mb-10 px-2"><Logo /></div>
           <NewChatButton />
@@ -259,19 +259,19 @@ export function DashboardLayout() {
           <RecentChats />
         </div>
         <div className="shrink-0">
-          {isGuest && <a href="/account" className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-teal-700 px-3 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-50 dark:border-teal-400 dark:text-teal-200 dark:hover:bg-white/5"><LogIn className="size-4" />Sign in or sign up</a>}
+          {isGuest && <a href="/account" className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-700 px-3 py-2.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5"><LogIn className="size-4" />Sign in or sign up</a>}
           <ProfileMenu />
         </div>
       </aside>}
 
-      {!sidebarVisible && <aside aria-label="Collapsed navigation" className="app-sidebar relative z-10 hidden h-full w-[4.5rem] shrink-0 flex-col justify-between overflow-visible border-r border-slate-200 bg-white px-2 py-3 text-slate-800 dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:flex">
+      {!sidebarVisible && <aside aria-label="Collapsed navigation" className="app-sidebar relative z-10 hidden h-full w-[4.5rem] shrink-0 flex-col justify-between overflow-visible border-r border-slate-200 bg-white px-2 py-3 text-slate-800 dark:border-[#252a35] dark:bg-[#10131a] dark:text-slate-200 md:flex">
         <div className="flex flex-col items-center gap-2">
           <button type="button" onClick={() => setSidebarVisible(true)} aria-label="Show sidebar" title="Show sidebar" className="grid size-11 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><PanelLeftOpen className="size-5" /></button>
-          <button type="button" onClick={() => navigate("/chat?new=1")} aria-label="New chat" title="New chat" className="grid size-11 place-items-center rounded-xl bg-teal-300 text-[#102522] transition hover:bg-teal-200"><Plus className="size-5" /></button>
+          <button type="button" onClick={() => navigate("/chat?new=1")} aria-label="New chat" title="New chat" className="grid size-11 place-items-center rounded-xl bg-blue-300 text-[#ffffff] transition hover:bg-blue-200"><Plus className="size-5" /></button>
           <div className="mt-1 w-full"><Navigation compact /></div>
         </div>
         <div className="flex flex-col items-center gap-2">
-          {isGuest && <a href="/account" aria-label="Sign in or sign up" title="Sign in or sign up" className="grid size-11 place-items-center rounded-xl border border-teal-700 text-teal-800 hover:bg-teal-50 dark:border-teal-400 dark:text-teal-200 dark:hover:bg-white/5"><LogIn className="size-4" /></a>}
+          {isGuest && <a href="/account" aria-label="Sign in or sign up" title="Sign in or sign up" className="grid size-11 place-items-center rounded-xl border border-blue-700 text-blue-800 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5"><LogIn className="size-4" /></a>}
           <ProfileMenu compact />
         </div>
       </aside>}
@@ -287,7 +287,7 @@ export function DashboardLayout() {
         id="mobile-navigation"
         aria-label="Mobile navigation"
         aria-hidden={!menuOpen}
-        className={`app-sidebar app-mobile-sidebar fixed inset-y-0 left-0 z-30 flex h-[100dvh] min-h-[100svh] w-72 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 pt-[calc(env(safe-area-inset-top)_+_1rem)] text-slate-800 transition-transform dark:border-[#32302c] dark:bg-[#141312] dark:text-slate-200 md:hidden ${
+        className={`app-sidebar app-mobile-sidebar fixed inset-y-0 left-0 z-30 flex h-[100dvh] min-h-[100svh] w-72 flex-col justify-between overflow-hidden border-r border-slate-200 bg-white p-5 pt-[calc(env(safe-area-inset-top)_+_1rem)] text-slate-800 transition-transform dark:border-[#252a35] dark:bg-[#10131a] dark:text-slate-200 md:hidden ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -304,11 +304,11 @@ export function DashboardLayout() {
           <Navigation onNavigate={() => setMenuOpen(false)} />
           <RecentChats onNavigate={() => setMenuOpen(false)} />
         </div>
-        <div className="shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{isGuest && <a href="/account" onClick={() => setMenuOpen(false)} className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-teal-700 px-3 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-50 dark:border-teal-400 dark:text-teal-200 dark:hover:bg-white/5"><LogIn className="size-4" />Sign in or sign up</a>}<ProfileMenu /></div>
+        <div className="shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{isGuest && <a href="/account" onClick={() => setMenuOpen(false)} className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-700 px-3 py-2.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5"><LogIn className="size-4" />Sign in or sign up</a>}<ProfileMenu /></div>
       </aside>
 
       <section className="app-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="app-mobile-header shrink-0 border-b border-[#dce7e0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] backdrop-blur dark:border-[#28413a] dark:bg-[#101a18]/90">
+        <header className="app-mobile-header shrink-0 border-b border-[#e0e6f0] bg-white/90 pt-[calc(env(safe-area-inset-top)_+_1rem)] backdrop-blur dark:border-[#283246] dark:bg-[#0b0d12]/90">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
             <button
               onClick={() => setMenuOpen(true)}
@@ -316,7 +316,7 @@ export function DashboardLayout() {
               aria-expanded={menuOpen}
               aria-controls="mobile-navigation"
               title="Open menu, chat history, and account"
-              className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-teal-600 dark:border-[#3a3935] dark:bg-[#1c1b18] dark:text-slate-100 dark:hover:bg-white/10 md:hidden"
+              className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:border-[#3a3935] dark:bg-[#151820] dark:text-slate-100 dark:hover:bg-white/10 md:hidden"
             ><Menu className="size-5" /></button>
             <div className="md:hidden"><Logo compact /></div>
             {sidebarVisible && <button
@@ -342,8 +342,8 @@ export function DashboardLayout() {
       {shareUrl && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) { setShareUrl(""); setShareError(""); } }}>
         <section role="dialog" aria-modal="true" aria-labelledby="share-chat-title" className="surface w-full max-w-md rounded-2xl p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-4"><div><h2 id="share-chat-title" className="text-lg font-semibold text-slate-900 dark:text-white">Share this chat</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Anyone with the link can read this conversation. Uploaded file contents remain private.</p></div><button type="button" onClick={() => { setShareUrl(""); setShareError(""); }} aria-label="Close share dialog" className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-4" /></button></div>
-          <div className="mt-4 flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-black/20"><Link2 className="size-4 shrink-0 text-slate-500" /><input readOnly value={shareUrl} aria-label="Chat share link" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200" /><button type="button" onClick={() => void copyChatShareLink()} className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800">Copy</button></div>
-          {shareError && <p role="status" className="mt-2 text-xs text-teal-700 dark:text-teal-300">{shareError}</p>}
+          <div className="mt-4 flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-black/20"><Link2 className="size-4 shrink-0 text-slate-500" /><input readOnly value={shareUrl} aria-label="Chat share link" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none dark:text-slate-200" /><button type="button" onClick={() => void copyChatShareLink()} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800">Copy</button></div>
+          {shareError && <p role="status" className="mt-2 text-xs text-blue-700 dark:text-blue-300">{shareError}</p>}
           <div className="mt-4 flex flex-wrap gap-2"><a href={`https://wa.me/?text=${encodeURIComponent(`${document.title}: ${shareUrl}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#25d366] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1fb95a]">WhatsApp <ExternalLink className="size-3.5" /></a>{typeof navigator.share === "function" && <button type="button" onClick={() => void navigator.share({ title: "Shared chat", url: shareUrl })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-white/5"><Share2 className="size-4" />More options</button>}</div>
         </section>
       </div>}
