@@ -152,3 +152,153 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pulse-typing {
   animation: pulseGlow 1.4s ease-in-out infinite;
 }
+
+/* Dashboard palette: graphite surfaces with clear blue accents. */
+.app-shell {
+  background: #f5f7fb;
+  color: #172033;
+}
+
+.app-shell .app-sidebar {
+  background-color: #ffffff;
+  border-color: #e0e6f0;
+}
+
+.app-shell .app-main {
+  background-color: #f5f7fb;
+}
+
+.app-shell .app-mobile-header {
+  background-color: rgb(255 255 255 / 94%);
+  border-color: #e0e6f0;
+}
+
+.app-shell .surface {
+  border-color: #e0e6f0;
+  background-color: #ffffff;
+}
+
+.app-shell [class*="text-teal-"] {
+  color: #2563eb;
+}
+
+.app-shell [class*="border-teal-"] {
+  border-color: #bfdbfe;
+}
+
+.app-shell [class*="bg-teal-300"] {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.app-shell [class*="bg-[#163a32]"] {
+  background-color: #14233e;
+}
+
+.app-shell .bg-gradient-to-br {
+  background-image: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.chat-composer {
+  border-color: #dce3ef;
+  border-radius: 1.5rem;
+  background-color: #ffffff;
+  box-shadow: 0 8px 28px rgb(15 23 42 / 7%);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.chat-composer:focus-within {
+  border-color: #9bbcf7;
+  box-shadow: 0 8px 28px rgb(37 99 235 / 10%);
+}
+
+.chat-composer button[aria-label="Attach images or files"] {
+  border-color: transparent;
+  border-radius: 9999px;
+  color: #2563eb;
+}
+
+.chat-composer button[aria-label="Attach images or files"]:hover {
+  background-color: #eff6ff;
+}
+
+.chat-composer button[type="submit"] {
+  border-radius: 9999px;
+  background-color: #2563eb;
+}
+
+.chat-composer button[type="submit"]:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.dark .app-shell {
+  background: #0b0d12;
+  color: #e7eaf0;
+}
+
+.dark .app-shell .app-sidebar {
+  background-color: #10131a;
+  border-color: #252a35;
+}
+
+.dark .app-shell .app-main {
+  background-color: #0b0d12;
+}
+
+.dark .app-shell .app-mobile-header {
+  background-color: rgb(16 19 26 / 96%);
+  border-color: #252a35;
+}
+
+.dark .app-shell .surface {
+  border-color: #282e3b;
+  background-color: #151820;
+  color: #e7eaf0;
+}
+
+.dark .app-shell [class*="text-teal-"] {
+  color: #8ab4ff;
+}
+
+.dark .app-shell [class*="border-teal-"] {
+  border-color: #344b71;
+}
+
+.dark .app-shell [class*="bg-teal-300"] {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.dark .app-shell [class*="bg-[#163a32]"] {
+  background-color: #14213a;
+}
+
+.dark .app-shell .bg-gradient-to-br {
+  background-image: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+
+.dark .chat-composer {
+  border-color: #2a3040;
+  background-color: #151820;
+  box-shadow: 0 10px 32px rgb(0 0 0 / 24%);
+}
+
+.dark .chat-composer:focus-within {
+  border-color: #456da8;
+  box-shadow: 0 10px 32px rgb(0 0 0 / 24%);
+}
+
+.dark .chat-composer button[aria-label="Attach images or files"] {
+  color: #8ab4ff;
+}
+
+.dark .chat-composer button[aria-label="Attach images or files"]:hover {
+  background-color: #202b3d;
+}
+
+@media (max-width: 767px) {
+  .chat-composer {
+    border-radius: 1.75rem;
+    padding: 0.5rem;
+  }
+}
