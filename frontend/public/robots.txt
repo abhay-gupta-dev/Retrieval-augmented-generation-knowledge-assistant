@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /login
+Disallow: /chat
+Disallow: /dashboard
+Disallow: /documents
+Disallow: /settings
+Disallow: /profile
+Disallow: /account
+Disallow: /shared
+
+Sitemap: https://retrieval-augmented-generation-know.vercel.app/sitemap.xml
