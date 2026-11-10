@@ -18,12 +18,11 @@ export function LandingPage() {
     robots?.setAttribute("content", "index,follow");
   }, []);
 
-  return <main className="min-h-screen overflow-hidden bg-[#f7faf8] text-slate-950 dark:bg-[#11100f] dark:text-white">
+  return <main className="landing-page min-h-screen overflow-x-hidden bg-[#f7faf8] text-slate-950 dark:bg-[#11100f] dark:text-white">
     <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
       <Logo />
       <nav className="flex items-center gap-2 sm:gap-3" aria-label="Main navigation">
-        <Link to="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10">Sign in</Link>
-        <Link to="/login" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Get started</Link>
+        <Link to="/login?mode=signup" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Get started</Link>
       </nav>
     </header>
 
@@ -34,7 +33,7 @@ export function LandingPage() {
         <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">Upload PDFs and other documents, ask questions in plain language, and get clear answers grounded in the information you provided.</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link to="/chat" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white shadow-md shadow-blue-900/10 transition hover:bg-blue-700">Try Cognitive RAG <ArrowRight className="size-4" /></Link>
-          <Link to="/login" className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">Create an account</Link>
+          <Link to="/login?mode=signup" className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">Create an account</Link>
         </div>
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Start in guest mode, or sign up to keep your account and chat history.</p>
       </div>
@@ -59,7 +58,7 @@ export function LandingPage() {
 
     <footer className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <p>© {new Date().getFullYear()} Cognitive RAG · AI knowledge assistant for your documents.</p>
-      <div className="flex gap-4"><Link to="/login" className="hover:text-blue-700 dark:hover:text-blue-300">Sign in / Create account</Link></div>
+      <div className="flex gap-4"><Link to="/login" className="hover:text-blue-700 dark:hover:text-blue-300">Sign in</Link><Link to="/login?mode=signup" className="hover:text-blue-700 dark:hover:text-blue-300">Create account</Link></div>
     </footer>
   </main>;
 }

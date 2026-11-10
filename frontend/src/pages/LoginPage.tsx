@@ -9,7 +9,7 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
   const { user, isLoading, isGuest, loginWithGoogle, signIn, signUp, continueAsGuest } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [registering, setRegistering] = useState(false);
+  const [registering, setRegistering] = useState(searchParams.get("mode") === "signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -111,7 +111,9 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
             { name: "Telegram", href: "https://telegram.org/", path: "M21.8 4.2c.2-1.1-.9-1.6-1.8-1.2L2.6 9.8c-1.2.5-1.2 1.2-.2 1.5l4.5 1.4 1.7 5.3c.2.7.1 1 .8 1 .5 0 .8-.2 1.1-.5l2.2-2.1 4.6 3.4c.8.4 1.4.2 1.6-.8zM8 12.4l9-5.7c.4-.2.7-.1.4.2l-7.5 6.8-.3 3.2z" },
             { name: "Facebook", href: "https://www.facebook.com/", path: "M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5V10H7v3h2.8v8z" },
             { name: "LinkedIn", href: "https://www.linkedin.com/", path: "M5.2 3a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4zM3.3 9h3.8v12H3.3zm6.1 0H13v1.6h.1A4.1 4.1 0 0 1 16.8 8c4 0 4.7 2.6 4.7 6V21h-3.8v-6.2c0-1.5 0-3.4-2.1-3.4s-2.4 1.6-2.4 3.3V21H9.4z" },
-            { name: "GitHub", href: "https://github.com/", path: "M12 .8a11.2 11.2 0 0 0-3.5 21.8c.6.1.8-.3.8-.6v-2.1c-3.1.7-3.8-1.3-3.8-1.3-.5-1.3-1.2-1.7-1.2-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 1.7 2.6 1.2 3.2.9.1-.7.4-1.2.7-1.5-2.5-.3-5.1-1.3-5.1-5.5 0-1.2.4-2.2 1.1-3-.1-.3-.5-1.4.1-2.9 0 0 .9-.3 3.1 1.1a10.7 10.7 0 0 1 5.6 0c2.1-1.4 3.1-1.1 3.1-1.1.6 1.5.2 2.6.1 2.9.7.8 1.1 1.8 1.1 3 0 4.2-2.6 5.2-5.1 5.5.4.3.8 1 .8 2v3.1c0 .3.2.7.8.6A11.2 11.2 0 0 0 12 .8z" },
+            { name: "Twitter", href: "https://x.com/", path: "M18.9 2H22l-6.8 7.8L23.2 22H17l-4.9-7.2L5.8 22H2.6l7.3-8.3L1.3 2h6.4l4.4 6.6zM17.8 20h1.7L6.8 3.9H5z" },
+            { name: "YouTube", href: "https://www.youtube.com/", path: "M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z" },
+            { name: "GitHub", href: "https://github.com/abhay-gupta-dev", path: "M12 .8a11.2 11.2 0 0 0-3.5 21.8c.6.1.8-.3.8-.6v-2.1c-3.1.7-3.8-1.3-3.8-1.3-.5-1.3-1.2-1.7-1.2-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 1.7 2.6 1.2 3.2.9.1-.7.4-1.2.7-1.5-2.5-.3-5.1-1.3-5.1-5.5 0-1.2.4-2.2 1.1-3-.1-.3-.5-1.4.1-2.9 0 0 .9-.3 3.1 1.1a10.7 10.7 0 0 1 5.6 0c2.1-1.4 3.1-1.1 3.1-1.1.6 1.5.2 2.6.1 2.9.7.8 1.1 1.8 1.1 3 0 4.2-2.6 5.2-5.1 5.5.4.3.8 1 .8 2v3.1c0 .3.2.7.8.6A11.2 11.2 0 0 0 12 .8z" },
           ].map(({ name, href, path }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={name} title={name} className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-teal-600 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-teal-400 dark:hover:bg-teal-950/50 dark:hover:text-teal-200"><svg viewBox="0 0 24 24" className="size-5 fill-current" aria-hidden="true"><path d={path} /></svg></a>)}
         </nav>
         <p className="text-xs text-slate-500 dark:text-slate-400">© {new Date().getFullYear()} Cognitive RAG</p>
