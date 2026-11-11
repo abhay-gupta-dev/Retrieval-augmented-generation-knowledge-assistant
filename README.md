@@ -1,105 +1,108 @@
-# AI Knowledge Platform
+# Cognitive RAG
 
-**Live project:** [Cognitive RAG](https://retrieval-augmented-generation-know.vercel.app)
+**Live app:** [retrieval-augmented-generation-know.vercel.app](https://retrieval-augmented-generation-know.vercel.app/)
 
-This repository is being migrated from a learning-oriented Streamlit RAG app to a full-stack AI Knowledge Platform. The original Streamlit files remain in place and are not used by the new application foundation.
+Cognitive RAG is a responsive AI knowledge assistant for chatting with documents, keeping conversations, and getting cited answers from retrieved content. It supports guest access as well as email/password and Google authentication. Optional Razorpay checkout lets users purchase AI reply credits or a usage plan.
 
-## Current foundation
+## Features
 
-```
-frontend/                 React + Vite + Tailwind CSS
-  src/
-    components/           Reusable UI components
-    context/ hooks/ pages/ Reserved for the next UI phases
-    layouts/              Shared page layout
-    services/             REST client
-backend/
-  app/
-    api/                  Versioned REST routers
-    core/                 Typed configuration and future security helpers
-    database/             PostgreSQL/SQLAlchemy connection boundary
-    services/             Future RAG, document, and chat use cases
-    agents/               Reserved for LangGraph agents
-    schemas/ utils/
-```
+- AI chat powered by Groq, with configurable chat and vision models
+- Upload PDFs and other supported documents, then ask questions about their contents
+- Upload images for vision-enabled chat
+- Conversation history, saved documents, and shareable chat links
+- Guest sessions, email/password accounts, and Google sign-in
+- Responsive desktop and mobile interface; installable Progressive Web App
+- Usage limits, billing history, and Razorpay checkout
+- Owner dashboard for application activity and confirmed payments
 
-The React page calls `GET /health` on FastAPI and renders the returned status. This establishes the browser-to-API integration without exposing any authentication, upload, or chat endpoint before its migration is designed and tested.
+## Tech stack
 
-## Prerequisites
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic
+- **Database:** PostgreSQL with pgvector
+- **AI:** Groq API, Sentence Transformers
+- **Payments:** Razorpay
+- **Deployment:** Vercel (frontend), Render (API and PostgreSQL)
 
-- Node.js 20+ and npm
-- Python 3.11+
-- PostgreSQL 16+ with the `vector` extension, required in a later database migration phase
+## Run locally
 
-## Run the backend
+Prerequisites: Node.js and npm, Python 3.11+, and Docker Desktop.
 
-From the repository root, use a new Python environment (do not rely on the old `.venv` if it points to a removed Python installation):
+### 1. Start PostgreSQL and the API
+
+From the repository root in PowerShell:
 
 ```powershell
+docker compose up -d postgres
 py -3.11 -m venv backend\.venv
 .\backend\.venv\Scripts\Activate.ps1
 pip install -r backend\requirements.txt
 Copy-Item backend\.env.example backend\.env
 Set-Location backend
-alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-Run `alembic upgrade head` again after pulling or applying a database migration. This creates the password-auth columns needed for email sign-up and login.
+The API applies database migrations at startup. Check `http://127.0.0.1:8000/health` or open the interactive API docs at `http://127.0.0.1:8000/docs`.
 
-Visit `http://localhost:8000/health`. It returns:
+Set at least `GROQ_API_KEY` in `backend/.env` to use AI chat. Google sign-in requires Google OAuth credentials and a redirect URI matching the local callback. Email/password and guest access can be used without Google OAuth configuration.
 
-```json
-{"status":"healthy"}
-```
+### 2. Start the frontend
 
-The interactive API documentation is at `http://localhost:8000/docs`.
-
-## Run the frontend
-
-In a second terminal from the repository root:
+Open a second PowerShell terminal from the repository root:
 
 ```powershell
 Set-Location frontend
-Copy-Item .env.example .env
 npm install
 npm run dev
 ```
 
-Open the Vite URL at `http://127.0.0.1:5173` for local development. Local API requests use Vite's same-origin proxy to `http://127.0.0.1:8000`, which keeps session cookies working. Leave `VITE_API_URL` empty for local development. The Google OAuth redirect URI in the Google Cloud Console must exactly match `GOOGLE_REDIRECT_URI` in `backend/.env`. For a separately deployed API, set `VITE_API_URL` in `frontend/.env` and allow the frontend origin in `backend/.env`.
+Open the Vite URL shown in the terminal (usually `http://localhost:5173`). The Vite development proxy forwards API requests to the local backend on port 8000.
 
-## Install as an app
+## Configuration
 
-The frontend is configured as an installable, responsive Progressive Web App. Build and deploy the `frontend/dist` directory to a site served over HTTPS (localhost is allowed for local development). On Android, open the site in Chrome and choose **Install app**; on iPhone/iPad, open it in Safari and choose **Share → Add to Home Screen**. The app shell and static assets can load offline after the first visit; API features still require the FastAPI backend to be reachable.
+Use `backend/.env.example` as the reference for backend settings. Important variables include:
 
-People can use a guest workspace without creating an account. Email/password registration and sign-in, plus Google sign-in, are also available from the account screen. Guest and account features that save documents or conversations still need the backend and PostgreSQL running. For phone access, deploy the backend at a public HTTPS address, set `VITE_API_URL` to that address before building the frontend, and allow the website origin in `CORS_ORIGINS` in `backend/.env`; `localhost` on a phone points to the phone itself, not your computer.
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `GROQ_API_KEY` | Enables AI chat and vision requests |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in credentials |
+| `GOOGLE_REDIRECT_URI` | OAuth callback registered with Google |
+| `JWT_SECRET_KEY`, `SESSION_SECRET_KEY` | Authentication and session secrets |
+| `CORS_ORIGINS`, `FRONTEND_URL` | Allowed frontend origins |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay checkout credentials |
+| `RAZORPAY_WEBHOOK_SECRET` | Secret for validating Razorpay webhooks |
+| `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` | Optional transactional email delivery |
 
-## Legacy system retained for gradual migration
+Keep backend secrets in the backend host’s environment settings. Never put secret keys in frontend variables or commit `.env` files. For local development, Razorpay and Google credentials are optional unless you are testing those specific integrations.
 
-`app.py`, `auth.py`, and `rag.py` are untouched. They provide the current Streamlit experience:
+## Plans and payments
 
-- local username/password login using bcrypt and a Streamlit session user id;
-- SQLite storage in `data/assistant.db` for users, raw document bytes, chunks with embedding blobs, and messages;
-- TXT, Markdown, PDF, and DOCX extraction; whitespace-token chunks of 900 words with 150-word overlap;
-- local `sentence-transformers` embeddings, in-memory brute-force cosine search, and Groq answer generation;
-- per-user source listing, chat history, and destructive clear actions.
+The app currently offers:
 
-The stale ignored `data/chunks.json`, `data/vectors.npy`, and `data/conversation.json` files are legacy artifacts and conflict with the current SQLite implementation; they are intentionally not consumed by the new foundation.
+| Plan | Price | Included usage |
+| --- | ---: | --- |
+| Single reply | ₹3 | 1 AI reply |
+| Reply pack | ₹20 | 15 AI replies |
+| Monthly plan | ₹60 | 100 replies per 30-day period for 30 days |
+| Six-month plan | ₹300 | 100 replies per 30-day period for 180 days |
 
-## Migration plan
+The backend creates Razorpay orders and grants credits only after confirming a captured payment. Configure the Razorpay webhook at `/api/v1/billing/webhook` and subscribe to `payment.captured` and `payment.failed`. Use test-mode credentials for simulated checkout; live payments require Razorpay activation and Live Mode credentials. Razorpay API secrets and webhook secrets must remain on the backend.
 
-1. **Foundation (complete):** introduce React/Vite/Tailwind and FastAPI, strict CORS, environment templates, the health contract, and service/router boundaries. Preserve the legacy application untouched.
-2. **Identity:** add Google OpenID Connect to FastAPI, PostgreSQL `users` and `oauth_accounts` tables, short-lived access JWTs plus rotated refresh tokens in HttpOnly/Secure/SameSite cookies, and React auth state. Map an existing legacy user only through an explicit, verified migration flow; never match solely by display name.
-3. **PostgreSQL and pgvector:** provision PostgreSQL, enable `vector`, introduce Alembic migrations, tenant-aware users/knowledge bases/documents/chunks/messages tables, metadata, content hashes, and vector indexes. Import SQLite data with id mapping, checksums, row counts, and rollback backup.
-4. **Document ingestion:** move uploads to authenticated REST endpoints plus private object storage. Validate content signatures and size, store generated object keys rather than user filenames, enqueue extraction/embedding jobs, record statuses/errors, deduplicate content, and show progress in React.
-5. **RAG parity:** port the existing extraction, chunking, HuggingFace embedding, pgvector similarity retrieval, Groq prompt, citations, and conversation behavior behind backend services. Use evaluation cases from current documents before switching the UI; dual-read or feature-flag the new path until parity is proven.
-6. **Product hardening:** add rate limits, audit logs, observability, backups, encryption/secrets management, authorization checks on every tenant-scoped query, tests, CI, and deployment configuration.
-7. **Agents:** add LangGraph only after the RAG API is stable. Define typed tools, bounded permissions, run tracing, human approval for side effects, and isolated worker execution before allowing multi-agent orchestration.
+## Deployment
 
-## Why this sequencing is safe
+- **Frontend:** deploy the `frontend` directory to Vercel. The Vercel rewrite configuration forwards `/api/*` and `/health` to the Render API.
+- **Backend:** deploy the `backend` directory to Render using the included `render.yaml` as a reference. Configure required secrets and production origins in the Render environment.
+- **Database:** use PostgreSQL with pgvector and set `DATABASE_URL` on the backend service.
+- After changing code, push to the connected GitHub branch and confirm the Vercel and Render deployments complete successfully.
 
-The old RAG behavior is preserved verbatim while new interfaces are introduced beside it. The database model is not copied mechanically: the current SQLite schema has no migration history, vector metadata, document-ingestion states, or production indexes. Google OAuth is intentionally the next phase, not part of this foundation, so no insecure half-authentication is exposed.
+## Security notes
 
-For Google sign-in, use the authorization-code OIDC flow with exact HTTPS callback registration, issuer/audience/nonce validation, a minimal `openid profile email` scope, and server-held client secrets. Google’s OAuth guidance requires exact redirect URI matching and recommends state validation; Streamlit’s own OIDC guidance is also useful context for the current app, but the target architecture will implement this in FastAPI rather than keep auth in Streamlit. [Google OAuth documentation](https://developers.google.com/identity/protocols/oauth2/web-server) [Streamlit OIDC documentation](https://docs.streamlit.io/develop/concepts/connections/authentication)
+- User data and conversations are scoped to the authenticated account or guest workspace.
+- Purchase records are tied to the signed-in account; only captured payments count as completed purchases.
+- Keep API keys, database URLs, OAuth secrets, and webhook secrets out of source control and the browser.
+- Verify that production CORS origins and OAuth redirect URLs match the deployed app domains.
 
-The future upload service will follow defense in depth: authenticated authorization, allowed types verified by content, file and extraction limits, generated storage names, non-public private storage, parser isolation, and malware scanning where available. [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
+## License
+
+Add a license before permitting reuse or redistribution. Until then, all rights are reserved by the repository owner.
