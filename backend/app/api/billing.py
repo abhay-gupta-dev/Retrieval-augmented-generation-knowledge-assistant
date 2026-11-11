@@ -65,7 +65,12 @@ def billing_status(user: User = Depends(get_current_user), database: Session = D
     summary["razorpay_key_id"] = settings.razorpay_key_id or None
     summary["orders"] = [
         _order_view(order) for order in database.scalars(
-            select(BillingOrder).where(BillingOrder.user_id == user.id).order_by(BillingOrder.created_at.desc()).limit(20)
+            # A gateway order is created before checkout opens. It is only a
+            # purchase after verification/webhook confirms a captured payment.
+            select(BillingOrder).where(
+                BillingOrder.user_id == user.id,
+                BillingOrder.status == "paid",
+            ).order_by(BillingOrder.paid_at.desc()).limit(20)
         )
     ]
     return summary
