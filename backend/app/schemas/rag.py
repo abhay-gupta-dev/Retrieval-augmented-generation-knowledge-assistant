@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
 
 class KnowledgeBaseCreate(BaseModel):
@@ -53,6 +54,7 @@ class Citation(BaseModel):
 class ChatSessionCreate(BaseModel):
     knowledge_base_id: UUID | None = None
     title: str | None = Field(default=None, max_length=160)
+    category: Literal["general", "medical"] = "general"
 
 
 class ChatSessionUpdate(BaseModel):
@@ -66,6 +68,7 @@ class ChatSessionResponse(BaseModel):
     id: UUID
     knowledge_base_id: UUID | None
     title: str
+    category: str = "general"
     created_at: datetime
     updated_at: datetime
     knowledge_base_name: str | None = None

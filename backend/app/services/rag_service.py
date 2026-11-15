@@ -95,7 +95,24 @@ def build_rag_prompt(
     sources: list[tuple[DocumentChunk, Document, float]],
     question: str,
     history: list[dict[str, str]],
+    medical_mode: bool = False,
 ) -> tuple[list[dict[str, str]], list[Citation]]:
+    if medical_mode:
+        system_prompt = (
+            "You are Cognitive RAG Medical Information, an educational health-information assistant, not a clinician. "
+            "This feature must stay within general medical education and urgency guidance. It cannot diagnose a person, "
+            "predict that they have a disease, prescribe medicines, recommend medication doses, or tell them to start, "
+            "stop, or change treatment. Never present a guess as a medical conclusion. State that symptoms can have "
+            "many causes and that an in-person assessment may be needed. If asked for a prescription, politely explain "
+            "that only a licensed clinician who has assessed the person can prescribe, and suggest contacting one. "
+            "For potentially severe or rapidly worsening symptoms, advise urgent local medical care. Do not delay urgent "
+            "care by asking more questions. Ask only relevant, non-identifying follow-up details such as symptom duration "
+            "or severity. Do not request names, addresses, phone numbers, or other identifiers. If the question is not "
+            "health-related, briefly say this page is for medical information and suggest the regular chat. Use plain, "
+            "concise language, preferably bullets, and do not claim to have checked medical records or current guidelines."
+        )
+        return ([{"role": "system", "content": system_prompt}, *history[-8:], {"role": "user", "content": question}], [])
+
     if sources:
         citations = [
             Citation(
@@ -158,14 +175,15 @@ def answer_question(
     question: str,
     history: list[dict[str, str]],
     user_id: UUID | None = None,
+    medical_mode: bool = False,
 ) -> tuple[str, list[Citation]]:
     """Synchronously generate a citation-backed RAG answer via Groq."""
     settings = get_settings()
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not configured on the server.")
 
-    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id else []
-    messages, citations = build_rag_prompt(sources, question, history)
+    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id and not medical_mode else []
+    messages, citations = build_rag_prompt(sources, question, history, medical_mode=medical_mode)
 
     try:
         client = Groq(api_key=settings.groq_api_key)
@@ -197,14 +215,15 @@ def stream_answer_question(
     question: str,
     history: list[dict[str, str]],
     user_id: UUID | None = None,
+    medical_mode: bool = False,
 ) -> Generator[dict[str, Any], None, None]:
     """Stream token chunks and citations for SSE."""
     settings = get_settings()
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not configured on the server.")
 
-    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id else []
-    messages, citations = build_rag_prompt(sources, question, history)
+    sources = retrieve(database, knowledge_base_id, question, user_id=user_id) if knowledge_base_id and not medical_mode else []
+    messages, citations = build_rag_prompt(sources, question, history, medical_mode=medical_mode)
 
     # First event: citations
     yield {"type": "citations", "citations": [c.model_dump(mode="json") for c in citations]}
