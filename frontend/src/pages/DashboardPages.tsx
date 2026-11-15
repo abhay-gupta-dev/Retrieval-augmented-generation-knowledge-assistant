@@ -265,7 +265,7 @@ export function ChatPage() {
     openedSavedChatRef.current = requestedChatId;
     void listChats()
       .then(async (chats) => {
-        const targetChat = chats.find((chat) => chat.id === requestedChatId && chat.category !== "medical");
+        const targetChat = chats.find((chat) => chat.id === requestedChatId);
         if (requestedChatId && !targetChat) {
           setError("That saved chat could not be found.");
           setSessionId("");
@@ -718,10 +718,6 @@ export function SettingsPage() {
       <select aria-label={t("settings.language")} value={language} onChange={(event) => setLanguage(event.target.value as typeof language)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:w-64">
         {languages.map((item) => <option key={item.code} value={item.code}>{item.nativeName} — {item.label}</option>)}
       </select>
-    </section>
-    <section className="surface flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-      <div><h2 className="text-lg font-semibold text-slate-950 dark:text-white">Medical AI</h2><p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">Ask general health questions in a separate space with its own saved conversations. It cannot diagnose or prescribe.</p></div>
-      <Link to="/medical" className="inline-flex shrink-0 items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">Open Medical AI</Link>
     </section>
   </div>;
 }

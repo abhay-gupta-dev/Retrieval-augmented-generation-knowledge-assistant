@@ -7,7 +7,6 @@ import { LoginPage } from "./pages/LoginPage";
 import { BillingPage } from "./pages/BillingPage";
 import { LandingPage } from "./pages/LandingPage";
 import { AboutPage } from "./pages/AboutPage";
-import { MedicalPage } from "./pages/MedicalPage";
 import { useAuth } from "./context/AuthContext";
 
 function HomeRoute() {
@@ -32,7 +31,6 @@ export default function App() {
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/medical" element={<MedicalPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

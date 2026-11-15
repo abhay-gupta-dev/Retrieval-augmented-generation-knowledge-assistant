@@ -86,7 +86,6 @@ def session_to_response(session: ChatSession, kb_name: str | None = None, msg_co
     return ChatSessionResponse(
         id=session.id,
         knowledge_base_id=session.knowledge_base_id,
-        category=session.category,
         title=session.title,
         created_at=session.created_at,
         updated_at=session.updated_at,
@@ -125,8 +124,6 @@ def create_chat(
 ) -> ChatSessionResponse:
     """Create a new chat session."""
     kb_name = None
-    if payload.category == "medical" and payload.knowledge_base_id:
-        raise HTTPException(status_code=400, detail="Medical information chats cannot be connected to document collections.")
     if payload.knowledge_base_id:
         kb = owned_knowledge_base(database, user, payload.knowledge_base_id)
         kb_name = kb.name
@@ -134,7 +131,6 @@ def create_chat(
     session = ChatSession(
         user_id=user.id,
         knowledge_base_id=payload.knowledge_base_id,
-        category=payload.category,
         title=payload.title.strip() if payload.title and payload.title.strip() else "New conversation",
     )
     database.add(session)
@@ -235,9 +231,7 @@ def create_chat_share(
     database: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Create a signed, read-only bearer link for a conversation."""
-    session = owned_session(database, user, session_id)
-    if session.category == "medical":
-        raise HTTPException(status_code=400, detail="Medical information chats cannot be shared.")
+    owned_session(database, user, session_id)
     token = share_serializer().dumps(str(session_id))
     return {"token": token}
 
@@ -254,8 +248,6 @@ def rename_chat(
     if payload.title is not None:
         session.title = payload.title.strip()
     if "knowledge_base_id" in payload.model_fields_set:
-        if session.category == "medical" and payload.knowledge_base_id is not None:
-            raise HTTPException(status_code=400, detail="Medical information chats cannot be connected to document collections.")
         if payload.knowledge_base_id is not None:
             owned_knowledge_base(database, user, payload.knowledge_base_id)
         session.knowledge_base_id = payload.knowledge_base_id
@@ -411,7 +403,6 @@ def send_message(
             question=user_message.content,
             history=history,
             user_id=user.id,
-            medical_mode=session.category == "medical",
         )
     except Exception as error:
         database.rollback()
@@ -454,8 +445,6 @@ def send_image(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image understanding is not configured on the server.")
 
     session = owned_session(database, user, session_id)
-    if session.category == "medical":
-        raise HTTPException(status_code=400, detail="Medical information chats do not accept image or document uploads.")
     allowed_types = {"image/jpeg", "image/png", "image/webp"}
     filename = "uploaded image"
     document: Document | None = None
@@ -615,7 +604,6 @@ def stream_message(
                 question=user_msg_content,
                 history=history,
                 user_id=current_user_id,
-                medical_mode=session.category == "medical",
             )
 
             for event in generator:
@@ -701,7 +689,6 @@ def retry_message(
             question=user_message.content,
             history=history,
             user_id=user.id,
-            medical_mode=session.category == "medical",
         )
     except Exception as error:
         database.rollback()

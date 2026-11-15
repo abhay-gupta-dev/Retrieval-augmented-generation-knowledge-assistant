@@ -139,7 +139,7 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
     let active = true;
     const loadChats = () => {
       void listChats().then((items) => {
-        if (active) setChats(items.filter((chat) => chat.category !== "medical"));
+        if (active) setChats(items);
       }).catch(() => {
         if (active) setChats([]);
       });

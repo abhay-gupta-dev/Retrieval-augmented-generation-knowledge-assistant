@@ -72,7 +72,6 @@ export type IndexedDocument = {
 export type ChatSession = {
   id: string;
   knowledge_base_id: string | null;
-  category: "general" | "medical";
   title: string;
   created_at: string;
   updated_at: string;
@@ -431,14 +430,12 @@ export const getChat = (sessionId: string) =>
 export const createChat = (
   knowledge_base_id?: string | null,
   title?: string,
-  category: "general" | "medical" = "general",
 ) =>
   request<ChatSession>("/api/v1/chat", {
     method: "POST",
     body: JSON.stringify({
       knowledge_base_id: knowledge_base_id || null,
       title,
-      category,
     }),
   });
 
