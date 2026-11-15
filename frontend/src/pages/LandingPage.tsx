@@ -3,11 +3,13 @@ import { ArrowRight, BookOpenText, FileSearch, Files, ShieldCheck, Sparkles } fr
 import { Link } from "react-router-dom";
 
 import { Logo } from "../components/Logo";
+import { useLanguage } from "../context/LanguageContext";
 
 const siteUrl = "https://retrieval-augmented-generation-know.vercel.app/";
 const description = "Cognitive RAG is an AI knowledge assistant that helps you ask questions about PDFs and documents and get clear answers grounded in your sources.";
 
 export function LandingPage() {
+  const { t } = useLanguage();
   useEffect(() => {
     document.title = "Cognitive RAG — Ask Questions About Your Documents";
     const descriptionTag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
@@ -22,20 +24,20 @@ export function LandingPage() {
     <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
       <Logo />
       <nav className="flex items-center gap-2 sm:gap-3" aria-label="Main navigation">
-        <Link to="/login?mode=signup" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Get started</Link>
+        <Link to="/login?mode=signup" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700">{t("landing.getStarted")}</Link>
       </nav>
     </header>
 
     <section className="mx-auto grid max-w-7xl items-center gap-12 px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:grid-cols-[1.1fr_.9fr]">
       <div>
-        <p className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200"><Sparkles className="size-3.5" /> Your documents, ready to answer</p>
-        <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">Understand your documents with <span className="text-blue-700 dark:text-blue-300">Cognitive RAG</span></h1>
-        <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">Upload PDFs and other documents, ask questions in plain language, and get clear answers grounded in the information you provided.</p>
+        <p className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200"><Sparkles className="size-3.5" /> {t("landing.badge")}</p>
+        <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{t("landing.title")}</h1>
+        <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">{t("landing.description")}</p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/chat" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white shadow-md shadow-blue-900/10 transition hover:bg-blue-700">Try Cognitive RAG <ArrowRight className="size-4" /></Link>
-          <Link to="/login?mode=signup" className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">Create an account</Link>
+          <Link to="/chat" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white shadow-md shadow-blue-900/10 transition hover:bg-blue-700">{t("landing.try")} <ArrowRight className="size-4" /></Link>
+          <Link to="/login?mode=signup" className="rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">{t("landing.createAccount")}</Link>
         </div>
-        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Start in guest mode, or sign up to keep your account and chat history.</p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t("landing.guestNote")}</p>
       </div>
       <div className="relative mx-auto w-full max-w-lg">
         <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-blue-200/70 via-blue-100/60 to-transparent blur-2xl dark:from-blue-900/30 dark:via-blue-900/20" />

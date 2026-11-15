@@ -4,9 +4,11 @@ import { BrainCircuit, FileText, Network, Sparkles } from "lucide-react";
 
 import { Logo } from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 
 export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?: boolean }) {
   const { user, isLoading, isGuest, loginWithGoogle, signIn, signUp, continueAsGuest } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [registering, setRegistering] = useState(searchParams.get("mode") === "signup");
@@ -77,25 +79,25 @@ export function LoginPage({ allowAuthenticated = false }: { allowAuthenticated?:
       </section>
 
       <section className="surface mx-auto w-full max-w-md rounded-2xl p-5 sm:p-8">
-        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{registering ? "Create your account" : "Welcome"}</p>
-        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{registering ? "Sign up with email" : "Use your workspace"}</h2>
+        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{registering ? t("auth.createAccount") : t("auth.welcome")}</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{registering ? t("auth.signUpEmail") : t("auth.workspace")}</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{isGuest ? "You’re using a guest workspace. Create an account or sign in whenever you choose." : "Use the app as a guest, or sign in to keep a personal account."}</p>
 
         {user && isGuest && <button type="button" onClick={() => window.location.assign("/chat")} className="mt-5 w-full rounded-xl border border-blue-700 px-4 py-3 font-semibold text-blue-800 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5">Continue as guest</button>}
-        {!user && <button type="button" onClick={() => void enterAsGuest()} disabled={busy || isLoading} className="mt-5 w-full rounded-xl border border-blue-700 px-4 py-3 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5">Continue without an account</button>}
+        {!user && <button type="button" onClick={() => void enterAsGuest()} disabled={busy || isLoading} className="mt-5 w-full rounded-xl border border-blue-700 px-4 py-3 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-400 dark:text-blue-200 dark:hover:bg-white/5">{t("auth.guest")}</button>}
 
-        <div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />OR<span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" /></div>
-        <button type="button" onClick={loginWithGoogle} className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#1d4ed8] px-4 py-3 font-semibold text-white shadow-lg shadow-blue-900/20 transition hover:bg-[#1e40af]"><span className="rounded bg-white px-1.5 py-0.5 font-bold text-[#4285F4]">G</span>Continue with Google</button>
+        <div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />{t("auth.or")}<span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" /></div>
+        <button type="button" onClick={loginWithGoogle} className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#1d4ed8] px-4 py-3 font-semibold text-white shadow-lg shadow-blue-900/20 transition hover:bg-[#1e40af]"><span className="rounded bg-white px-1.5 py-0.5 font-bold text-[#4285F4]">G</span>{t("auth.google")}</button>
         <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Account signups notify the site owner with your name and email through Brevo. Guest-session alerts are anonymous.</p>
 
         <form onSubmit={(event) => void submit(event)} className="mt-5 space-y-3">
-          {registering && <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Name<input autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>}
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Password<input type="password" autoComplete={registering ? "new-password" : "current-password"} minLength={registering ? 8 : undefined} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>
+          {registering && <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{t("auth.name")}<input autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>}
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{t("auth.email")}<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{t("auth.password")}<input type="password" autoComplete={registering ? "new-password" : "current-password"} minLength={registering ? 8 : undefined} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white" /></label>
           {(error || serverError) && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error || serverError}</p>}
-          <button type="submit" disabled={busy || isLoading} className="w-full rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:opacity-50">{busy ? "Please wait…" : registering ? "Create account" : "Sign in with email"}</button>
+          <button type="submit" disabled={busy || isLoading} className="w-full rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:opacity-50">{busy ? t("auth.pleaseWait") : registering ? t("auth.create") : t("auth.signIn")}</button>
         </form>
-        <button type="button" onClick={() => { setRegistering((value) => !value); setError(""); }} className="mt-4 w-full text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300">{registering ? "Already have an account? Sign in" : "Need an account? Sign up"}</button>
+        <button type="button" onClick={() => { setRegistering((value) => !value); setError(""); }} className="mt-4 w-full text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300">{registering ? t("auth.switchToSignIn") : t("auth.switchToSignUp")}</button>
         {allowAuthenticated && <Link to="/dashboard" className="mt-4 block text-center text-sm text-slate-500 hover:underline">Back to workspace</Link>}
       </section>
     </div>

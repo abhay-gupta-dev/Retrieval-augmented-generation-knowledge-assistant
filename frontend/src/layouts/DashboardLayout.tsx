@@ -6,27 +6,29 @@ import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "reac
 import { Logo } from "../components/Logo";
 import { ProfileMenu } from "../components/ProfileMenu";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { createChatShare, deleteChat, listChats, savedChatOpenIntentKey, subscribeToChatHistoryChanges, type ChatSession } from "../services/api";
 
 const links = [
-  { to: "/dashboard", label: "Overview", Icon: House },
-  { to: "/chat", label: "Chat", Icon: MessageSquare },
-  { to: "/documents", label: "Documents", Icon: Files },
-  { to: "/billing", label: "Billing & payments", Icon: CreditCard },
-  { to: "/settings", label: "Settings", Icon: Settings },
-  { to: "/profile", label: "Profile settings", Icon: UserRound },
-];
+  { to: "/dashboard", labelKey: "nav.overview", Icon: House },
+  { to: "/chat", labelKey: "nav.chat", Icon: MessageSquare },
+  { to: "/documents", labelKey: "nav.documents", Icon: Files },
+  { to: "/billing", labelKey: "nav.billing", Icon: CreditCard },
+  { to: "/settings", labelKey: "nav.settings", Icon: Settings },
+  { to: "/profile", labelKey: "nav.profile", Icon: UserRound },
+] as const;
 
 function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
+  const { t } = useLanguage();
   return (
     <nav className="space-y-1" aria-label="Primary navigation">
-      {links.map(({ to, label, Icon }) => (
+      {links.map(({ to, labelKey, Icon }) => (
         <NavLink
           key={to}
           to={to}
           onClick={onNavigate}
-          title={compact ? label : undefined}
-          aria-label={compact ? label : undefined}
+          title={compact ? t(labelKey) : undefined}
+          aria-label={compact ? t(labelKey) : undefined}
           className={({ isActive }) =>
             `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${compact ? "justify-center px-0" : ""} ${
               isActive
@@ -36,7 +38,7 @@ function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; 
           }
         >
           <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true"><Icon className="size-5" /></span>
-          {!compact && label}
+          {!compact && t(labelKey)}
         </NavLink>
       ))}
     </nav>
@@ -44,17 +46,19 @@ function Navigation({ onNavigate, compact = false }: { onNavigate?: () => void; 
 }
 
 function NewChatButton() {
+  const { t } = useLanguage();
   return (
     <a
       href="/chat?new=1"
       className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-300 px-4 py-3 text-sm font-bold text-[#ffffff] transition hover:bg-blue-200"
     >
-      <span aria-hidden="true">+</span> New chat
+      <span aria-hidden="true">+</span> {t("nav.newChat")}
     </a>
   );
 }
 
 function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useLanguage();
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [menuChatId, setMenuChatId] = useState("");
   const [deletingChatId, setDeletingChatId] = useState("");
@@ -150,9 +154,9 @@ function RecentChats({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <section className="mt-6 flex min-h-0 flex-1 flex-col" aria-label="Saved chats">
-      <h2 className="mb-2 shrink-0 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Chat history</h2>
+      <h2 className="mb-2 shrink-0 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("nav.chatHistory")}</h2>
       {chats.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">Your saved chats will appear here.</p>
+        <p className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{t("nav.savedChats")}</p>
       ) : (
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
           {chats.map((chat, index) => (

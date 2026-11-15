@@ -14,6 +14,7 @@ type PendingAttachment = {
 };
 import { attachKnowledgeBaseToChat, createChat, createKnowledgeBase, deleteDocument, editChatMessage, getAdminDashboardOverview, getBillingStatus, getDashboardStats, getSharedChat, listChats, listDocuments, listKnowledgeBases, listMessages, notifyChatHistoryChanged, retryMessage, savedChatOpenIntentKey, sendImage, sendMessage, streamChatMessage, uploadDocument, type AdminDashboardOverview, type ChatMessage, type DashboardStats, type IndexedDocument, type KnowledgeBase, type SharedChat } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { languages, useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ThemeToggle";
 
@@ -86,6 +87,7 @@ function OwnerDashboard({ overview, onRefresh }: { overview: AdminDashboardOverv
 }
 
 export function DocumentsPage() {
+  const { t } = useLanguage();
   const { bases, reload } = useKnowledgeBases();
   const [selected, setSelected] = useState("all");
   const [name, setName] = useState("");
@@ -158,18 +160,18 @@ export function DocumentsPage() {
 
   return <div className="space-y-8">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Knowledge</p><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Documents</h1><p className="mt-2 max-w-xl text-slate-600 dark:text-slate-300">Your uploaded files and photos are saved here in your private workspace.</p></div>
-      {bases.length > 0 && <select aria-label="Select collection" value={selected} onChange={(event) => setSelected(event.target.value)} className="rounded-xl border border-[#cbdcd4] bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm dark:border-[#283246] dark:bg-[#14231f] dark:text-white"><option value="all">All documents</option>{bases.map((base) => <option key={base.id} value={base.id}>{base.name}</option>)}</select>}
+      <div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{t("nav.documents")}</p><h1 className="text-3xl font-bold text-slate-950 dark:text-white">{t("documents.title")}</h1><p className="mt-2 max-w-xl text-slate-600 dark:text-slate-300">{t("documents.description")}</p></div>
+      {bases.length > 0 && <select aria-label={t("documents.all")} value={selected} onChange={(event) => setSelected(event.target.value)} className="rounded-xl border border-[#cbdcd4] bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm dark:border-[#283246] dark:bg-[#14231f] dark:text-white"><option value="all">{t("documents.all")}</option>{bases.map((base) => <option key={base.id} value={base.id}>{base.name}</option>)}</select>}
     </div>
     <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
       <section className="surface rounded-2xl p-6">
-        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Create a collection</p><h2 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">Organize your files</h2>
-        <form onSubmit={(event) => void addBase(event)} className="mt-5 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="e.g. Personal files" className="w-full rounded-xl border border-[#cbdcd4] bg-white p-3 text-slate-900 outline-none focus:border-blue-500 dark:border-[#283246] dark:bg-[#14231f] dark:text-white" /><button type="submit" className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-semibold text-white transition hover:bg-[#1e40af]">Create collection</button></form>
+        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{t("documents.createCollection")}</p><h2 className="mt-2 text-xl font-bold text-slate-950 dark:text-white">{t("documents.organize")}</h2>
+        <form onSubmit={(event) => void addBase(event)} className="mt-5 space-y-3"><input value={name} onChange={(event) => setName(event.target.value)} required placeholder="e.g. Personal files" className="w-full rounded-xl border border-[#cbdcd4] bg-white p-3 text-slate-900 outline-none focus:border-blue-500 dark:border-[#283246] dark:bg-[#14231f] dark:text-white" /><button type="submit" className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-semibold text-white transition hover:bg-[#1e40af]">{t("documents.create")}</button></form>
         <div className="mt-6 rounded-xl bg-[#eef6f1] p-4 text-sm leading-6 text-slate-600 dark:bg-white/5 dark:text-slate-300">Supported files: images, TXT, Markdown, PDF, and DOCX. Files uploaded in chat are saved here too.</div>
       </section>
       {selected ? <section className="surface rounded-2xl p-6">
-        <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{documents.length} file{documents.length === 1 ? "" : "s"}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{selected === "all" ? "All documents" : bases.find((base) => base.id === selected)?.name}</h2></div><button type="button" onClick={() => { setLoading(true); const load = selected === "all" ? Promise.all(bases.map((base) => listDocuments(base.id))).then((groups) => groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at))) : listDocuments(selected); void load.then(setDocuments).catch((cause) => setError(cause instanceof Error ? cause.message : "Could not refresh files.")).finally(() => setLoading(false)); }} className="rounded-lg px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-white/5">Refresh</button></div>
-        <label className="mt-5 block cursor-pointer rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-7 text-center transition hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:bg-blue-950/40"><input type="file" accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addFile(file); event.currentTarget.value = ""; }} /><span className="text-2xl" aria-hidden="true">↑</span><span className="mt-2 block font-semibold text-blue-900 dark:text-blue-200">Add a file or photo</span><span className="mt-1 block text-sm text-blue-700/70 dark:text-blue-300/70">Select a file to save it in this collection</span></label>
+        <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{documents.length} file{documents.length === 1 ? "" : "s"}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{selected === "all" ? t("documents.all") : bases.find((base) => base.id === selected)?.name}</h2></div><button type="button" onClick={() => { setLoading(true); const load = selected === "all" ? Promise.all(bases.map((base) => listDocuments(base.id))).then((groups) => groups.flat().sort((a, b) => b.created_at.localeCompare(a.created_at))) : listDocuments(selected); void load.then(setDocuments).catch((cause) => setError(cause instanceof Error ? cause.message : "Could not refresh files.")).finally(() => setLoading(false)); }} className="rounded-lg px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-white/5">{t("common.refresh")}</button></div>
+        <label className="mt-5 block cursor-pointer rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-7 text-center transition hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 dark:hover:bg-blue-950/40"><input type="file" accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addFile(file); event.currentTarget.value = ""; }} /><span className="text-2xl" aria-hidden="true">↑</span><span className="mt-2 block font-semibold text-blue-900 dark:text-blue-200">{t("documents.addFile")}</span><span className="mt-1 block text-sm text-blue-700/70 dark:text-blue-300/70">{t("documents.selectFile")}</span></label>
         {loading ? <div className="mt-6 space-y-3">{[1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />)}</div> : documents.length ? <div className="mt-6 space-y-3">{documents.map((document) => {
           const fileUrl = `/api/v1/knowledge-bases/${encodeURIComponent(document.knowledge_base_id)}/documents/${encodeURIComponent(document.id)}/file`;
           const isImage = document.content_type?.startsWith("image/");
@@ -179,7 +181,7 @@ export function DocumentsPage() {
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.status === "indexed" || document.status === "stored" ? "bg-emerald-100 text-emerald-800" : document.status === "failed" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{document.status === "stored" ? "saved" : document.status}</span>
             <button type="button" onClick={() => void removeFile(document)} disabled={deletingId === document.id} aria-label={`Permanently delete ${document.original_filename}`} title="Permanently delete" className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"><Trash2 className="size-4" /></button>
           </div>;
-        })}</div> : <p className="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">No files in this collection yet.</p>}
+        })}</div> : <p className="mt-6 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">{t("documents.empty")}</p>}
       </section> : <section className="surface flex min-h-64 items-center justify-center rounded-2xl p-8 text-center"><div><p className="text-3xl" aria-hidden="true">▤</p><h2 className="mt-3 text-xl font-bold text-slate-950 dark:text-white">Create a collection to get started</h2><p className="mt-2 text-sm text-slate-500">Chat uploads create a collection automatically.</p></div></section>}
     </div>
     {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
@@ -188,6 +190,7 @@ export function DocumentsPage() {
 
 export function ChatPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { reload } = useKnowledgeBases();
   const location = useLocation();
   const navigate = useNavigate();
@@ -406,7 +409,7 @@ export function ChatPage() {
     const imageAttachments = attachments.filter((attachment) => attachment.file.type.startsWith("image/"));
     const documentAttachments = attachments.filter((attachment) => !attachment.file.type.startsWith("image/"));
     const prompt = question.trim();
-    const documentPrompt = prompt || "Please summarize the attached document.";
+    const documentPrompt = prompt || t("chat.summarize");
     if ((!prompt && attachments.length === 0) || sending) return;
 
     setSending(true);
@@ -547,7 +550,7 @@ export function ChatPage() {
         // that the streaming endpoint has already saved.
         const reply = userMessageAccepted
           ? await retryMessage(activeSessionId)
-          : await sendMessage(activeSessionId, prompt);
+          : await sendMessage(activeSessionId, documentPrompt);
         setError("");
         setQuestion("");
         setPendingAttachments([]);
@@ -574,8 +577,8 @@ export function ChatPage() {
     <section className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-6" aria-live="polite">
       {messages.length === 0 && <div className="flex min-h-64 items-center justify-center text-center"><div>
         <p className="text-4xl" aria-hidden="true">✦</p>
-        <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{user?.provider === "guest" ? "Welcome to Cognitive RAG!" : `Welcome${user?.name ? `, ${user.name.trim().split(/\s+/)[0]}` : ""}!`}</h2>
-        <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">How can I help you today?</p>
+        <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{user?.provider === "guest" ? t("chat.newWelcome") : `Welcome${user?.name ? `, ${user.name.trim().split(/\s+/)[0]}` : ""}!`}</h2>
+        <p className="mt-2 text-base font-medium text-slate-700 dark:text-slate-200">{t("chat.welcome")}</p>
       </div></div>}
       {messages.map((message) => {
         const imageSrc = message.role === "user" ? (message.attachment_url || imagePreviews[message.id]) : undefined;
@@ -642,10 +645,10 @@ export function ChatPage() {
         </div>)}
       </div>}
       <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
-        <button type="button" aria-label="Attach images or files" title="Attach images or files" disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#283246] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
-        <textarea rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} disabled={sending} placeholder="Ask anything…" aria-label="Your message" style={{ resize: "none" }} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 focus-visible:outline-none dark:text-white sm:min-h-12 sm:px-3 sm:py-3" />
+        <button type="button" aria-label={t("chat.upload")} title={t("chat.upload")} disabled={uploading || sending} onClick={() => fileInput.current?.click()} className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#cbdcd4] text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-[#283246] dark:text-slate-200 dark:hover:bg-white/5 sm:size-12"><Plus className="size-5" /></button>
+        <textarea rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} disabled={sending} placeholder={t("chat.placeholder")} aria-label={t("chat.placeholder")} style={{ resize: "none" }} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 focus-visible:outline-none dark:text-white sm:min-h-12 sm:px-3 sm:py-3" />
         <div className="shrink-0 [&_button]:size-10 sm:[&_button]:size-12"><VoiceInputButton disabled={sending || uploading || indexing} onTranscript={(transcript) => setQuestion((current) => current ? `${current} ${transcript}` : transcript)} /></div>
-        <button type="submit" disabled={sending || uploading || indexing || (!question.trim() && pendingAttachments.length === 0)} aria-label="Send message" className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-lg text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 sm:size-12">↑</button>
+        <button type="submit" disabled={sending || uploading || indexing || (!question.trim() && pendingAttachments.length === 0)} aria-label={t("chat.send")} title={t("chat.send")} className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-lg text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 sm:size-12">↑</button>
       </div>
     </form>
     {(uploading || indexing) && <p role="status" className="text-sm text-slate-500">{uploading ? "Uploading your file…" : "Indexing your file… You can start chatting when it is ready."}</p>}
@@ -690,37 +693,45 @@ export function SharedChatPage() {
             </section>
           </>}
     </div>
-    {previewImage && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-4" onClick={(event) => { if (event.target === event.currentTarget) setPreviewImage(""); }}><button type="button" onClick={() => setPreviewImage("")} aria-label="Close image preview" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><X className="size-5" /></button><img src={previewImage} alt="Full size shared attachment" className="max-h-[92vh] max-w-[94vw] object-contain" /></div>}
+      {previewImage && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-4" onClick={(event) => { if (event.target === event.currentTarget) setPreviewImage(""); }}><button type="button" onClick={() => setPreviewImage("")} aria-label="Close image preview" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"><X className="size-5" /></button><img src={previewImage} alt="Full size shared attachment" className="max-h-[92vh] max-w-[94vw] object-contain" /></div>}
   </main>;
 }
 
 export function SettingsPage() {
   const { theme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   return <div className="mx-auto w-full max-w-4xl space-y-6">
     <header>
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Preferences</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Settings</h1>
-      <p className="mt-2 text-slate-600 dark:text-slate-300">Adjust how Cognitive RAG looks on this device.</p>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{t("settings.preferences")}</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{t("settings.title")}</h1>
+      <p className="mt-2 text-slate-600 dark:text-slate-300">{t("settings.description")}</p>
     </header>
     <section className="surface flex flex-col gap-5 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div>
-        <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Appearance</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Current mode: <span className="font-semibold capitalize">{theme}</span></p>
+        <h2 className="text-lg font-semibold text-slate-950 dark:text-white">{t("settings.appearance")}</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t("settings.currentMode")}: <span className="font-semibold capitalize">{theme}</span></p>
       </div>
       <ThemeToggle />
+    </section>
+    <section className="surface flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div><h2 className="text-lg font-semibold text-slate-950 dark:text-white">{t("settings.language")}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t("settings.languageDescription")}</p></div>
+      <select aria-label={t("settings.language")} value={language} onChange={(event) => setLanguage(event.target.value as typeof language)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:w-64">
+        {languages.map((item) => <option key={item.code} value={item.code}>{item.nativeName} — {item.label}</option>)}
+      </select>
     </section>
   </div>;
 }
 
 export const ProfilePage = () => {
   const { user, isGuest } = useAuth();
+  const { t } = useLanguage();
   const initials = (user?.name || "U").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const providerLabel = isGuest ? "Guest workspace" : user?.provider === "google" ? "Google account" : "Email account";
 
   return <div className="mx-auto w-full max-w-4xl space-y-6">
     <header>
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Your account</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Profile settings</h1>
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{t("nav.profile")}</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{t("profile.title")}</h1>
       <p className="mt-2 text-slate-600 dark:text-slate-300">View the profile details connected to your workspace.</p>
     </header>
 
@@ -739,12 +750,12 @@ export const ProfilePage = () => {
         </div>
 
         <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-950 dark:text-white">Profile information</h3>
+          <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{t("profile.information")}</h3>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</dt><dd className="mt-2 break-words font-medium text-slate-900 dark:text-slate-100">{user?.name || "Not provided"}</dd></div>
-            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email address</dt><dd className="mt-2 break-all font-medium text-slate-900 dark:text-slate-100">{user?.email || "Not provided"}</dd></div>
-            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Sign-in method</dt><dd className="mt-2 font-medium text-slate-900 dark:text-slate-100">{providerLabel}</dd></div>
-            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Member since</dt><dd className="mt-2 font-medium text-slate-900 dark:text-slate-100">{user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "—"}</dd></div>
+            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("profile.name")}</dt><dd className="mt-2 break-words font-medium text-slate-900 dark:text-slate-100">{user?.name || t("profile.notProvided")}</dd></div>
+            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("profile.email")}</dt><dd className="mt-2 break-all font-medium text-slate-900 dark:text-slate-100">{user?.email || t("profile.notProvided")}</dd></div>
+            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("profile.signIn")}</dt><dd className="mt-2 font-medium text-slate-900 dark:text-slate-100">{providerLabel}</dd></div>
+            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("profile.memberSince")}</dt><dd className="mt-2 font-medium text-slate-900 dark:text-slate-100">{user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "—"}</dd></div>
           </dl>
         </div>
         {isGuest && <p className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">You’re using a guest workspace. Your profile is temporary; sign in or create an account from the bottom of the sidebar to keep an account profile.</p>}

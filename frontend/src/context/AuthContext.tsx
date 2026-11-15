@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
 import {
-  getCurrentUser,
   googleLoginUrl,
   guestLogin as guestLoginRequest,
   loginRequest,
@@ -33,10 +32,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const loadUser = useCallback(async (): Promise<User | null> => {
     const hadGuestSession = window.localStorage.getItem("knowledge-platform:guest-session") === "true";
     const hadAccountSession = window.localStorage.getItem("knowledge-platform:account-session") === "true";
-    // 1. Try restoring existing active session
+    // Restore in one request. The backend returns a valid access-cookie session
+    // directly, or rotates the refresh cookie when the access token expired.
     try {
-      const currentUser = await getCurrentUser();
-      if (currentUser.provider === "guest") {
+      const restoredUser = await refreshSession();
+      if (restoredUser.provider === "guest") {
         window.localStorage.setItem("knowledge-platform:guest-session", "true");
         window.localStorage.removeItem("knowledge-platform:account-session");
       } else {
@@ -44,38 +44,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
         window.localStorage.removeItem("knowledge-platform:guest-session");
       }
       window.localStorage.removeItem(explicitLogoutKey);
-      setUser(currentUser);
-      return currentUser;
+      setUser(restoredUser);
+      return restoredUser;
     } catch {
-      // 2. If access token expired, try refreshing
-      try {
-        const refreshedUser = await refreshSession();
-        if (refreshedUser.provider === "guest") {
-          window.localStorage.setItem("knowledge-platform:guest-session", "true");
-          window.localStorage.removeItem("knowledge-platform:account-session");
-        } else {
-          window.localStorage.setItem("knowledge-platform:account-session", "true");
-          window.localStorage.removeItem("knowledge-platform:guest-session");
+      // Restore only a previously chosen guest workspace; never silently
+      // replace an account with a guest session.
+      if (hadGuestSession && !hadAccountSession) {
+        try {
+          const guestUser = await guestLoginRequest();
+          setUser(guestUser);
+          return guestUser;
+        } catch {
+          // Leave the user on the account screen if the API is unavailable.
         }
-        window.localStorage.removeItem(explicitLogoutKey);
-        setUser(refreshedUser);
-        return refreshedUser;
-      } catch {
-        // Access and refresh cookies may be unavailable after browser restart
-        // or when switching between localhost and 127.0.0.1. Restore only a
-        // previously chosen guest workspace; never silently replace an account.
-        if (hadGuestSession && !hadAccountSession) {
-          try {
-            const guestUser = await guestLoginRequest();
-            setUser(guestUser);
-            return guestUser;
-          } catch {
-            // Leave the user on the account screen with the actionable error.
-          }
-        }
-        setUser(null);
-        return null;
       }
+      setUser(null);
+      return null;
     }
   }, []);
 

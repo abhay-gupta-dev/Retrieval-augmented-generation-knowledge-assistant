@@ -238,6 +238,15 @@ def current_user(user: User = Depends(get_current_user)) -> User:
 @router.post("/refresh", response_model=UserResponse)
 def refresh_session(request: Request, response: Response, database: Session = Depends(get_db)) -> User:
     settings = get_settings()
+    # The frontend uses this endpoint to restore a session on startup. If the
+    # access cookie is still valid, return it directly rather than forcing a
+    # second request or rotating the refresh token on every app open.
+    try:
+        return get_current_user(request, None, database)
+    except HTTPException as error:
+        if error.status_code != status.HTTP_401_UNAUTHORIZED:
+            raise
+
     refresh_tok = request.cookies.get("refresh_token", "")
     rotated = rotate_refresh_session(database, refresh_tok, settings.refresh_token_expire_days)
     if not rotated:

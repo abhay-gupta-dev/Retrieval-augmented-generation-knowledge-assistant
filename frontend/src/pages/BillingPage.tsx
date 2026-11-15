@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, CreditCard, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { createBillingOrder, getBillingStatus, listAdminBillingOrders, verifyBillingPayment, type BillingOrder, type BillingStatus, type RazorpayOrder } from "../services/api";
 
 type CheckoutResult = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
@@ -44,6 +45,7 @@ async function loadRazorpay(): Promise<void> {
 
 export function BillingPage() {
   const { isGuest } = useAuth();
+  const { t } = useLanguage();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [ownerOrders, setOwnerOrders] = useState<BillingOrder[]>([]);
   const [error, setError] = useState("");
@@ -115,24 +117,24 @@ export function BillingPage() {
   return <div className="mx-auto w-full max-w-5xl space-y-7 pb-8">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Plans & usage</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Replies for your AI workspace</h1><p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-300">One free AI reply is included. Choose reply credits or a plan whenever you need more.</p></div>
-      <button type="button" onClick={() => { setLoading(true); void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "Refresh failed.")).finally(() => setLoading(false)); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><RefreshCw className="size-4" />Refresh</button>
+      <button type="button" onClick={() => { setLoading(true); void reload().catch((cause) => setError(cause instanceof Error ? cause.message : "Refresh failed.")).finally(() => setLoading(false)); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><RefreshCw className="size-4" />{t("common.refresh")}</button>
     </header>
 
     {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100">{error}</div>}
     {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">{notice}</div>}
 
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Current reply balance">
-      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">Free replies left</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.free_replies_remaining ?? 0}</p></div>
-      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">Purchased replies</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.token_balance ?? 0}</p></div>
-      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">Plan replies this period</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.subscription_replies_remaining ?? 0}</p></div>
-      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">Plan status</p><p className="mt-2 text-lg font-bold text-slate-950 dark:text-white">{billing?.is_owner ? "Owner access" : billing?.subscription_active ? "Active" : "No active plan"}</p>{billing?.subscription_expires_at && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Until {new Date(billing.subscription_expires_at).toLocaleDateString()}</p>}</div>
+      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">{t("billing.freeReplies")}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.free_replies_remaining ?? 0}</p></div>
+      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">{t("billing.purchasedReplies")}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.token_balance ?? 0}</p></div>
+      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">{t("billing.planReplies")}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{loading ? "…" : billing?.is_owner ? "Unlimited" : billing?.subscription_replies_remaining ?? 0}</p></div>
+      <div className="surface rounded-2xl p-4"><p className="text-sm text-slate-500 dark:text-slate-400">{t("billing.planStatus")}</p><p className="mt-2 text-lg font-bold text-slate-950 dark:text-white">{billing?.is_owner ? "Owner access" : billing?.subscription_active ? "Active" : "No active plan"}</p>{billing?.subscription_expires_at && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Until {new Date(billing.subscription_expires_at).toLocaleDateString()}</p>}</div>
     </section>
 
     {billing?.is_owner && <p className="flex items-start gap-2 rounded-xl bg-blue-50 p-4 text-sm text-blue-900 dark:bg-blue-950/30 dark:text-blue-100"><ShieldCheck className="mt-0.5 size-4 shrink-0" />Owner billing is exempt from reply limits. Payment records below include each buyer’s name, email, product, amount, and gateway IDs.</p>}
     {isGuest && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">Purchases require an account so your reply balance remains attached to you. <a className="ml-1 font-semibold underline" href="/account">Sign in or create an account</a>.</div>}
 
     <section>
-      <div className="mb-4 flex items-center gap-2"><Sparkles className="size-5 text-blue-600 dark:text-blue-300" /><h2 className="text-xl font-bold text-slate-950 dark:text-white">Choose an option</h2></div>
+      <div className="mb-4 flex items-center gap-2"><Sparkles className="size-5 text-blue-600 dark:text-blue-300" /><h2 className="text-xl font-bold text-slate-950 dark:text-white">{t("billing.choose")}</h2></div>
       <div className="grid gap-4 sm:grid-cols-2">
         {products.map((product) => <article key={product.code} className="surface relative flex flex-col rounded-2xl p-5">
           {product.badge && <span className="absolute right-4 top-4 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-200">{product.badge}</span>}
@@ -146,7 +148,7 @@ export function BillingPage() {
     </section>
 
     <section className="surface overflow-hidden rounded-2xl">
-      <div className="border-b border-slate-200 p-5 dark:border-slate-800"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{billing?.is_owner ? "Customer payment history" : "Your payment history"}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Paid and failed payments are listed. Abandoned checkouts are hidden.</p></div>
+      <div className="border-b border-slate-200 p-5 dark:border-slate-800"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{t("billing.history")}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("billing.paidFailed")}</p></div>
       {(billing?.is_owner ? ownerOrders : ownOrders).length ? <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-white/5 dark:text-slate-400"><tr><th className="px-5 py-3">Buyer</th><th className="px-5 py-3">Product</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Date / payment ID</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(billing?.is_owner ? ownerOrders : ownOrders).map((order) => <tr key={order.id}><td className="px-5 py-3"><p className="font-semibold text-slate-900 dark:text-white">{order.buyer_name}</p><p className="text-xs text-slate-500">{order.buyer_email}</p></td><td className="px-5 py-3 text-slate-700 dark:text-slate-200">{order.product_name}</td><td className="px-5 py-3 font-semibold text-slate-900 dark:text-white">₹{order.amount_inr}</td><td className="px-5 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${order.status === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{order.status}</span></td><td className="px-5 py-3 text-xs text-slate-500">{new Date(order.paid_at || order.created_at).toLocaleString()}<br />{order.gateway_payment_id || "—"}</td></tr>)}</tbody></table></div> : <p className="p-6 text-sm text-slate-500 dark:text-slate-400">No paid or failed payments yet. Abandoned checkouts are not shown.</p>}
     </section>
   </div>;
