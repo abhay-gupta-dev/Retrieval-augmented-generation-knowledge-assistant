@@ -102,14 +102,24 @@ def create_refresh_session(database: Session, user: User, lifetime_days: int) ->
     return token
 
 
-def rotate_refresh_session(database: Session, token: str, lifetime_days: int) -> tuple[User, str] | None:
+def rotate_refresh_session(
+    database: Session,
+    token: str,
+    lifetime_days: int,
+    guest_lifetime_days: int | None = None,
+) -> tuple[User, str] | None:
     session = database.scalar(select(RefreshSession).where(RefreshSession.token_hash == hash_refresh_token(token)))
     if not session or session.revoked_at is not None or session.expires_at <= utc_now():
         return None
+    user = session.user
+    if user.provider == "guest" and guest_lifetime_days is not None:
+        renewal_window_days = max(1, guest_lifetime_days - 365)
+        if session.expires_at - utc_now() > timedelta(days=renewal_window_days):
+            return user, token
     session.revoked_at = utc_now()
     database.commit()
-    user = session.user
-    return user, create_refresh_session(database, user, lifetime_days)
+    session_lifetime = guest_lifetime_days if user.provider == "guest" and guest_lifetime_days is not None else lifetime_days
+    return user, create_refresh_session(database, user, session_lifetime)
 
 
 def revoke_refresh_session(database: Session, token: str | None) -> None:

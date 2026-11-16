@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 14
+    guest_session_expire_days: int = 3650
     cookie_secure: bool = False
     upload_directory: str = "./data/uploads"
     max_upload_bytes: int = 20 * 1024 * 1024

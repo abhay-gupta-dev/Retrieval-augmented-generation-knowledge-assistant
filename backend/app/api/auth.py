@@ -52,6 +52,7 @@ def login_error_redirect(settings: Settings, message: str) -> RedirectResponse:
 
 
 def set_session_cookies(response: Response, user: User, refresh_token: str, settings: Settings) -> None:
+    refresh_lifetime_days = settings.guest_session_expire_days if user.provider == "guest" else settings.refresh_token_expire_days
     response.set_cookie(
         "access_token",
         create_access_token(user.id),
@@ -64,7 +65,7 @@ def set_session_cookies(response: Response, user: User, refresh_token: str, sett
     response.set_cookie(
         "refresh_token",
         refresh_token,
-        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        max_age=refresh_lifetime_days * 24 * 60 * 60,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",
@@ -151,7 +152,7 @@ def guest_login(
         picture=None,
         provider="guest",
     )
-    refresh_token = create_refresh_session(database, user, settings.refresh_token_expire_days)
+    refresh_token = create_refresh_session(database, user, settings.guest_session_expire_days)
     set_session_cookies(response, user, refresh_token, settings)
     subject, body = guest_session_notification()
     background_tasks.add_task(send_admin_notification, subject, body)
@@ -238,17 +239,38 @@ def current_user(user: User = Depends(get_current_user)) -> User:
 @router.post("/refresh", response_model=UserResponse)
 def refresh_session(request: Request, response: Response, database: Session = Depends(get_db)) -> User:
     settings = get_settings()
-    # The frontend uses this endpoint to restore a session on startup. If the
-    # access cookie is still valid, return it directly rather than forcing a
-    # second request or rotating the refresh token on every app open.
+    # Restore account sessions directly when the short-lived access cookie is
+    # valid. Guest sessions also rotate their long-lived device cookie so
+    # frequently used guest workspaces do not age out.
     try:
-        return get_current_user(request, None, database)
+        current_user = get_current_user(request, None, database)
+        if current_user.provider != "guest":
+            return current_user
+
+        guest_refresh = request.cookies.get("refresh_token", "")
+        rotated_guest = rotate_refresh_session(
+            database,
+            guest_refresh,
+            settings.refresh_token_expire_days,
+            guest_lifetime_days=settings.guest_session_expire_days,
+        ) if guest_refresh else None
+        if rotated_guest:
+            current_user, guest_refresh = rotated_guest
+        else:
+            guest_refresh = create_refresh_session(database, current_user, settings.guest_session_expire_days)
+        set_session_cookies(response, current_user, guest_refresh, settings)
+        return current_user
     except HTTPException as error:
         if error.status_code != status.HTTP_401_UNAUTHORIZED:
             raise
 
     refresh_tok = request.cookies.get("refresh_token", "")
-    rotated = rotate_refresh_session(database, refresh_tok, settings.refresh_token_expire_days)
+    rotated = rotate_refresh_session(
+        database,
+        refresh_tok,
+        settings.refresh_token_expire_days,
+        guest_lifetime_days=settings.guest_session_expire_days,
+    )
     if not rotated:
         clear_session_cookies(response, settings)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please sign in again.")
